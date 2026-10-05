@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Club Culture Pétanque — Martinique</title>
+<meta name="description" content="Club de pétanque à La Crique, Trinité, Martinique : événements, tournois, boutique et inscription des membres.">
+<link rel="icon" href="logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Lora:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="nav">
+  <a class="brand" href="#home"><img src="logo.png" alt="">Culture Pétanque</a>
+  <button class="burger" id="burger" aria-label="Menu" aria-expanded="false">☰</button>
+  <nav id="menu">
+    <a href="#home">Accueil</a><a href="#events">Événements</a><a href="#shop">Boutique</a>
+    <a href="#members">Membres</a><a href="#admin">Admin</a>
+  </nav>
+</header>
+
+<main>
+  <section id="home" class="page">
+    <div class="hero">
+      <img src="logo.png" alt="Logo Club Culture Pétanque">
+      <h1>Club Culture Pétanque</h1>
+      <p>Au cœur de la pétanque martiniquaise. Basé à La Crique, Trinité, notre club unit tradition, convivialité et passion du jeu.</p>
+      <p class="meta">📍 La Crique, Trinité • Martinique</p>
+      <div class="cta"><a class="btn primary" href="#members">Rejoindre le club</a><a class="btn" href="#events">Voir les événements</a></div>
+    </div>
+    <div class="wrap narrow">
+      <h2>À propos du club</h2>
+      <p>Culture Pétanque est une association dédiée à la promotion de la pétanque et de ses valeurs. Nous rassemblons joueurs amateurs, passionnés et compétiteurs autour de la convivialité, du respect et de l'excellence sportive.</p>
+      <p><strong class="red">Notre mission :</strong> <em>développer l'art de la pétanque en Martinique, créer des liens durables entre les membres et organiser des événements qui célèbrent notre culture.</em></p>
+    </div>
+    <div class="wrap">
+      <h2>Prochains événements</h2>
+      <div id="home-events" class="grid"></div>
+      <p class="center"><a class="btn" href="#events">Tous les événements</a></p>
+    </div>
+    <div class="wrap">
+      <div class="grid three">
+        <a class="card link" href="#members"><h3>👥 Membres</h3><p>Inscrivez-vous et rejoignez la communauté du club.</p></a>
+        <a class="card link" href="#events"><h3>📅 Tournois</h3><p>Découvrez les événements et inscrivez-vous en ligne.</p></a>
+        <a class="card link" href="#shop"><h3>🛍️ Boutique</h3><p>Tenues officielles, équipements et souvenirs du club.</p></a>
+      </div>
+    </div>
+  </section>
+
+  <section id="events" class="page wrap">
+    <h2 class="title">Événements & tournois</h2>
+    <div id="events-list"></div>
+    <h3 class="sub">Vos avis</h3>
+    <div id="comments-list"></div>
+    <form id="comment-form" class="panel narrow-form">
+      <h3>Laisser un commentaire</h3>
+      <label>Votre nom<input name="author" required maxlength="80"></label>
+      <label>Événement<select name="eventId"></select></label>
+      <label>Message<textarea name="text" rows="3" required maxlength="1000"></textarea></label>
+      <button class="btn primary">Envoyer</button>
+      <p class="note">Les commentaires sont publiés après modération.</p>
+    </form>
+  </section>
+
+  <section id="shop" class="page wrap">
+    <h2 class="title">Boutique</h2>
+    <div id="products" class="grid three"></div>
+    <div class="panel" id="cart">
+      <h3>Mon panier</h3>
+      <div id="cart-body"></div>
+    </div>
+  </section>
+
+  <section id="members" class="page wrap">
+    <h2 class="title">Devenir membre</h2>
+    <p id="member-count" class="note"></p>
+    <form id="member-form" class="panel narrow-form">
+      <label>Nom complet<input name="name" required maxlength="100"></label>
+      <label>Email<input name="email" type="email" required maxlength="150"></label>
+      <label>Téléphone<input name="phone" type="tel" placeholder="+596…" maxlength="30"></label>
+      <label>Niveau<select name="level"><option>Débutant</option><option>Intermédiaire</option><option>Avancé</option><option>Compétiteur</option></select></label>
+      <button class="btn primary">S'inscrire</button>
+    </form>
+  </section>
+
+  <section id="admin" class="page wrap">
+    <h2 class="title">Administration</h2>
+    <form id="login-form" class="panel narrow-form">
+      <label>Mot de passe<input name="password" type="password" required autocomplete="current-password"></label>
+      <button class="btn primary">Se connecter</button>
+    </form>
+    <div id="admin-panel" hidden>
+      <div class="tabs" id="tabs"></div>
+      <div id="tab-body"></div>
+      <p><button class="btn" id="logout">Se déconnecter</button></p>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <p>© <span id="year"></span> <span data-s="clubName">Club Culture Pétanque</span> — <span data-s="address"></span></p>
+  <p><a data-href="mailto:email" data-s="email"></a> · <a data-href="tel:phone" data-s="phone"></a> · <a data-href="facebook" target="_blank" rel="noopener">Facebook</a> · <a data-href="whatsapp" target="_blank" rel="noopener">WhatsApp</a></p>
+</footer>
+<div id="toast" role="status"></div>
+<script src="app.js"></script>
+</body>
+</html>
