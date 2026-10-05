@@ -315,6 +315,17 @@ $('#upload-form').onsubmit = async (e) => {
 route();
 loadAll().catch(() => toast('Impossible de charger les données.', true));
 
+/* ---------- Bandeau : sigle CCP quand le nom est coupé ---------- */
+function fitBrand() {
+  const brand = $('.brand'), full = $('.brand .full'), nav = $('.nav');
+  brand.classList.remove('compact');
+  const lh = parseFloat(getComputedStyle(full).lineHeight) || full.offsetHeight;
+  if (full.offsetHeight > lh * 1.4 || nav.scrollWidth > nav.clientWidth + 1) brand.classList.add('compact');
+}
+addEventListener('resize', fitBrand);
+fitBrand();
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitBrand);
+
 /* ---------- Application installable (PWA) ---------- */
 let installEvent = null;
 addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installEvent = e; $('#install-box').hidden = false; });

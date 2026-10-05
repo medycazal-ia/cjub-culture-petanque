@@ -104,6 +104,16 @@ server {
 
 Puis `sudo certbot --nginx -d votre-domaine` pour le HTTPS.
 
+## Application installable (PWA)
+
+Le site peut s'installer comme une application (icône sur l'écran d'accueil, ouverture sans barre de navigateur, dernières données consultées disponibles hors connexion).
+
+- **HTTPS obligatoire** : l'installation ne se propose qu'en `https://` (étape 3). Sans HTTPS, le site fonctionne mais ne s'installe pas.
+- **Android / ordinateur (Chrome, Edge)** : un bouton « Installer l'application » apparaît en bas de page.
+- **iPhone / iPad (Safari)** : pas d'invite automatique ; le site explique le geste (Partager → Sur l'écran d'accueil).
+- **À chaque mise à jour des fichiers du site**, changez `VERSION` en haut de `public/sw.js` (par exemple `ccp-v2`) : sans cela, les visiteurs peuvent garder l'ancienne version en cache.
+- **Icônes** : `public/icons/`. Elles sont agrandies depuis un logo de 96 px ; remplacez-les par de vraies images 192 et 512 px (et `icon-maskable-512.png` avec une marge autour du logo) pour un rendu net.
+
 ## Ce que le site n'envoie pas
 
 Il n'envoie aucun email (confirmations, rappels) et ne prend pas de paiement en ligne : les commandes sont réglées et retirées au club. Les inscrits sont consultables dans l'espace Admin (Inscriptions, Membres, Invités).

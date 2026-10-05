@@ -148,3 +148,8 @@ footer{padding-bottom:max(2rem,env(safe-area-inset-bottom))}
   input,select,textarea{min-height:44px;font-size:16px}
   #lb-close{min-width:44px}
 }
+
+/* Quand le nom ne tient plus dans le bandeau, on affiche le sigle CCP */
+.brand .short{display:none;letter-spacing:.08em}
+.brand.compact .full{display:none}
+.brand.compact .short{display:inline}
