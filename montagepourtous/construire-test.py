@@ -27,3 +27,15 @@ function go(x){p1.hidden=!x;p2.hidden=x;a.setAttribute('aria-selected',x);b.setA
 '''
 open('TEST-NAVIGATEUR.html', 'w', encoding='utf-8').write(html)
 print('TEST-NAVIGATEUR.html reconstruit')
+
+# ---- ADMIN-DEMO.html : l'interface d'administration avec des données fictives, sans serveur ----
+usage = open('usage.js', encoding='utf-8').read().replace('</script', '<\\/script')
+mock = open('demo-admin-mock.js', encoding='utf-8').read()
+adm = open('public/admin.html', encoding='utf-8').read()
+corps = adm[adm.index('<body>') + 6: adm.index('<script src="js/admin.js">')]
+demo = ('<!doctype html>\n<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">\n<title>Administration (démonstration) — MontagePourTous</title>\n'
+        '<script>' + r('public/js/theme.js') + '</script>\n<style>' + css + '.test{background:#ffd23d;color:#222;padding:.4rem 1rem;font-weight:700;text-align:center;margin:0 -40px}</style></head><body>\n'
+        '<div class="test">DÉMONSTRATION : données fictives, rien n\'est enregistré. Mot de passe : Admin-MPT-ChangezMoi-2026</div>\n' + corps +
+        '<script>var module={exports:{}};' + usage + ';window.__USAGE=module.exports;</script>\n<script>' + mock + '</script>\n<script>' + r('public/js/admin.js') + '</script></body></html>\n')
+open('ADMIN-DEMO.html', 'w', encoding='utf-8').write(demo)
+print('ADMIN-DEMO.html reconstruit')

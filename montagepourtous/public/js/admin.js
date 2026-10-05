@@ -1,7 +1,10 @@
 (function () {
   var $ = function (id) { return document.getElementById(id); }, mdp = '';
   function h() { return { Authorization: 'Bearer ' + mdp, 'Content-Type': 'application/json' }; }
-  function api(m, u, b) { return fetch(u, { method: m, headers: h(), body: b ? JSON.stringify(b) : undefined }).then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.erreur || 'Erreur'); return j; }); }); }
+  function api(m, u, b) {
+    if (location.protocol === 'file:' && !window.MPT_DEMO) return Promise.reject(new Error('Cette page est ouverte directement depuis un fichier : elle a besoin du serveur (npm start, puis http://localhost:3100/admin.html), ou ouvrez ADMIN-DEMO.html pour la voir avec des données de démonstration.'));
+    return fetch(u, { method: m, headers: h(), body: b ? JSON.stringify(b) : undefined }).then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { if (r.status === 429) throw new Error('Trop de tentatives : attendez 15 minutes puis réessayez.'); if (!r.ok) throw new Error(j.erreur || 'Erreur ' + r.status); return j; }); }, function () { throw new Error('Le serveur ne répond pas. Vérifiez qu\'il est bien lancé (npm start) et que l\'adresse est la bonne.'); });
+  }
   function date(s) { return s ? new Date(s).toLocaleString('fr-FR') : '—'; }
   function eur(x) { return String(Math.round(x * 100) / 100).replace('.', ',') + ' €'; }
   function td(tr, v, cls) { var c = document.createElement('td'); if (cls) c.className = cls; if (v instanceof Node) c.appendChild(v); else c.textContent = v; tr.appendChild(c); return c; }
@@ -48,7 +51,7 @@
       if (!r.lienAnnuel) $('e-reg').textContent = '⚠ Aucun lien de paiement configuré : les messages mentionnent l\'abonnement annuel mais sans lien.'; else $('e-reg').textContent = '';
     });
   }
-  $('f').onsubmit = function (e) { e.preventDefault(); mdp = $('mdp').value; $('err').textContent = ''; chargerInscrits().catch(function (x) { $('err').textContent = x.message; }); };
+  $('f').onsubmit = function (e) { e.preventDefault(); mdp = $('mdp').value.trim(); $('err').textContent = ''; chargerInscrits().catch(function (x) { $('err').textContent = x.message; }); };
   $('f-reg').onsubmit = function (e) {
     e.preventDefault(); $('ok-reg').textContent = ''; $('e-reg').textContent = '';
     var n = function (k) { return String($('r-' + k).value).replace(',', '.').trim(); }, b = {};
