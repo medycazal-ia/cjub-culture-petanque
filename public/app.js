@@ -4,7 +4,9 @@ const esc = (v) => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<'
 const eur = (n) => Number(n).toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' });
 const fdate = (d) => /^\d{4}-\d{2}-\d{2}$/.test(d) ? new Date(d + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : d;
 
-let state = { events: [], products: [], comments: [], settings: {} };
+let state = { events: [], products: [], comments: [], gallery: [], settings: {} };
+const todayStr = () => new Date().toISOString().slice(0, 10);
+const isPast = (e) => e.status === 'Terminé' || e.date < todayStr();
 let token = sessionStorage.getItem('adminToken') || '';
 let cart = (() => { try { return JSON.parse(localStorage.getItem('cart')) || {}; } catch { return {}; } })();
 let adminTab = 'events', adminData = null;
@@ -34,16 +36,17 @@ function route() {
   $('#menu').classList.remove('open'); $('#burger').setAttribute('aria-expanded', 'false');
   window.scrollTo(0, 0);
   if (page === 'admin') showAdmin();
+  if (page === 'gallery') syncUploadForm();
 }
 addEventListener('hashchange', route);
 $('#burger').onclick = () => { const o = $('#menu').classList.toggle('open'); $('#burger').setAttribute('aria-expanded', o); };
 
 /* ---------- Données publiques ---------- */
 async function loadAll() {
-  const [events, products, comments, settings, count] = await Promise.all([
-    api('/events'), api('/products'), api('/comments'), api('/settings'), api('/members/count')]);
-  Object.assign(state, { events, products, comments, settings });
-  renderEvents(); renderProducts(); renderCart(); renderSettings();
+  const [events, products, comments, settings, count, gallery] = await Promise.all([
+    api('/events'), api('/products'), api('/comments'), api('/settings'), api('/members/count'), api('/gallery')]);
+  Object.assign(state, { events, products, comments, settings, gallery });
+  renderEvents(); renderGallery(); renderProducts(); renderCart(); renderSettings();
   $('#member-count').textContent = count.count ? count.count + ' membre(s) déjà inscrit(s).' : '';
 }
 function eventCard(e, withActions) {
@@ -54,9 +57,9 @@ function eventCard(e, withActions) {
     ${withActions && e.status === 'Ouvert' ? `<button class="btn primary small" data-reg="${e.id}">S'inscrire</button>` : ''}</div></article>`;
 }
 function renderEvents() {
-  const upcoming = state.events.filter(e => e.status !== 'Terminé');
+  const upcoming = state.events.filter(e => !isPast(e));
   $('#home-events').innerHTML = upcoming.slice(0, 3).map(e => eventCard(e, false)).join('') || '<p class="note">Aucun événement pour le moment.</p>';
-  $('#events-list').innerHTML = state.events.map(e => eventCard(e, true)).join('') || '<p class="note">Aucun événement pour le moment.</p>';
+  $('#events-list').innerHTML = upcoming.map(e => eventCard(e, true)).join('') || '<p class="note">Aucun événement à venir. Retrouvez les anciens dans la <a href="#gallery">galerie</a>.</p>';
   $('#comments-list').innerHTML = state.comments.map(c => {
     const ev = state.events.find(e => e.id === c.eventId);
     return `<div class="comment"><b>${esc(c.author)}</b>${ev ? ` — <em>${esc(ev.title)}</em>` : ''}<p>${esc(c.text)}</p><span class="note">${esc(c.date)}</span></div>`;
@@ -133,7 +136,7 @@ function renderSettings() {
 }
 
 /* ---------- Administration ---------- */
-const TABS = { events: 'Événements', products: 'Produits', registrations: 'Inscriptions', members: 'Membres', orders: 'Commandes', comments: 'Commentaires', settings: 'Paramètres' };
+const TABS = { events: 'Événements', gallery: 'Galerie', products: 'Produits', registrations: 'Inscriptions', members: 'Membres', orders: 'Commandes', comments: 'Commentaires', settings: 'Paramètres' };
 function logout() { token = ''; sessionStorage.removeItem('adminToken'); adminData = null; showAdmin(); }
 $('#logout').onclick = logout;
 $('#login-form').onsubmit = async (e) => {
@@ -142,6 +145,7 @@ $('#login-form').onsubmit = async (e) => {
   if (r) { token = r.token; sessionStorage.setItem('adminToken', token); e.target.reset(); showAdmin(); }
 };
 async function showAdmin() {
+  syncUploadForm();
   $('#login-form').hidden = !!token; $('#admin-panel').hidden = !token;
   if (!token) return;
   adminData = await act(() => api('/admin/overview'));
@@ -169,6 +173,18 @@ function renderAdmin() {
   if (adminTab === 'orders') h = tbl(['N°', 'Client', 'Articles', 'Total', 'Statut'], d.orders.map(o =>
     `<tr><td>${o.id}</td><td>${esc(o.name)}<br><span class="note">${esc(o.email)}</span></td><td>${o.items.map(i => `${esc(i.name)} ×${i.quantity}`).join('<br>')}</td><td>${eur(o.total)}</td>
     <td><select data-order="${o.id}">${['À régler', 'Payée', 'Retirée'].map(s => `<option ${s === o.status ? 'selected' : ''}>${s}</option>`).join('')}</select></td></tr>`));
+  if (adminTab === 'gallery') {
+    const src = (g) => `/media/${g.file}?t=${encodeURIComponent(token)}`;
+    const prev = (g) => g.type === 'video' ? `<video controls preload="metadata" src="${src(g)}"></video>` : `<img loading="lazy" alt="" src="${src(g)}">`;
+    const evName = (g) => (state.events.find(e => e.id === g.eventId) || {}).title || 'Général';
+    const row = (g, pend) => `<div class="mod"><div class="thumb">${prev(g)}</div><div class="info"><b>${esc(g.title || '(sans titre)')}</b><br>
+      <span class="note">${esc(g.author)}${g.email ? ' · ' + esc(g.email) : ''} · ${esc(evName(g))} · ${esc(g.date)}</span><p>${
+      pend ? `<button class="btn small primary" data-gm="${g.id}">Approuver</button> <button class="btn small danger" data-gdel="${g.id}">Rejeter</button>` : `<button class="btn small danger" data-gdel="${g.id}">Supprimer</button>`}</p></div></div>`;
+    const pend = d.gallery.filter(g => g.status === 'pending'), ok = d.gallery.filter(g => g.status === 'approved');
+    h = `<h3>En attente de validation (${pend.length})</h3>` + (pend.map(g => row(g, true)).join('') || '<p class="note">Rien à valider.</p>') +
+      `<h3>Publiés (${ok.length})</h3>` + (ok.map(g => row(g)).join('') || '<p class="note">Aucun.</p>') +
+      '<p class="note">Pour ajouter vous-même des médias (publiés immédiatement), utilisez la page <a href="#gallery">Galerie</a> en étant connecté.</p>';
+  }
   if (adminTab === 'comments') {
     const card = (c, pending) => `<div class="comment"><b>${esc(c.author)}</b><p>${esc(c.text)}</p>${pending ? `<button class="btn small primary" data-cm="${c.id}:approved">Approuver</button> <button class="btn small danger" data-cm="${c.id}:rejected">Rejeter</button>` : `<button class="btn small danger" data-cm="${c.id}:rejected">Supprimer</button>`}</div>`;
     const p = d.comments.filter(c => c.status === 'pending'), a = d.comments.filter(c => c.status === 'approved');
@@ -184,6 +200,11 @@ async function refresh() { await loadAll(); await showAdmin(); }
 $('#tab-body').onclick = async (e) => {
   const t = e.target;
   if (t.dataset.del) { const [k, id] = t.dataset.del.split(':'); if (confirm('Supprimer définitivement ?')) { await act(() => api(`/${k}/${id}`, 'DELETE'), 'Supprimé'); refresh(); } }
+  if (t.dataset.gm) { await act(() => api(`/admin/gallery/${t.dataset.gm}`, 'PATCH', { status: 'approved' }), 'Publié dans la galerie'); refresh(); }
+  if (t.dataset.gdel) {
+    if (t.dataset.armed !== '1') { t.dataset.armed = '1'; t.textContent = 'Confirmer ?'; setTimeout(() => { t.dataset.armed = ''; t.textContent = 'Supprimer'; }, 3000); return; }
+    await act(() => api(`/gallery/${t.dataset.gdel}`, 'DELETE'), 'Supprimé'); refresh();
+  }
   if (t.dataset.cm) { const [id, status] = t.dataset.cm.split(':'); await act(() => api(`/admin/comments/${id}`, 'PATCH', { status }), 'Mis à jour'); refresh(); }
 };
 $('#tab-body').onchange = async (e) => {
@@ -196,6 +217,71 @@ $('#tab-body').onsubmit = async (e) => {
   const map = { 'f-event': ['/events', 'POST', 'Événement créé'], 'f-product': ['/products', 'POST', 'Produit ajouté'], 'f-settings': ['/admin/settings', 'PATCH', 'Paramètres enregistrés'] };
   const m = map[f.id]; if (!m) return;
   if (await act(() => api(m[0], m[1], body), m[2])) refresh();
+};
+
+/* ---------- Galerie ---------- */
+function renderGallery() {
+  const past = state.events.filter(isPast).sort((a, b) => b.date.localeCompare(a.date));
+  $('#past-events').innerHTML = past.map(e => {
+    const n = state.gallery.filter(g => g.eventId === e.id).length;
+    return `<article class="card"><div class="date red">${esc(fdate(e.date))}</div><h3>${esc(e.title)}</h3><p>${esc(e.description)}</p>
+      <p><button class="btn small" data-ev="${e.id}">${n ? n + ' photo(s)/vidéo(s)' : 'Aucun média'}</button></p></article>`;
+  }).join('') || '<p class="note">Les événements passés apparaîtront ici.</p>';
+  const opts = '<option value="">Tous les événements</option>' + state.events.map(e => `<option value="${e.id}">${esc(e.title)} (${esc(e.date)})</option>`).join('');
+  const cur = $('#g-event').value; $('#g-event').innerHTML = opts; $('#g-event').value = cur;
+  $('#u-event').innerHTML = '<option value="">— Général —</option>' + state.events.map(e => `<option value="${e.id}">${esc(e.title)}</option>`).join('');
+  renderMedia();
+}
+function filtered() {
+  const ev = $('#g-event').value, ty = $('#g-type').value;
+  return state.gallery.filter(g => (!ev || String(g.eventId) === ev) && (!ty || g.type === ty)).sort((a, b) => b.id - a.id);
+}
+function renderMedia() {
+  const list = filtered();
+  $('#media-grid').innerHTML = list.map((g, i) => `<button class="tile" data-i="${i}" aria-label="Ouvrir ${esc(g.title || 'le média')}">${
+    g.type === 'video' ? `<video preload="metadata" muted playsinline src="${esc(g.url)}#t=0.5"></video><span class="play">▶ vidéo</span>` : `<img loading="lazy" alt="${esc(g.title)}" src="${esc(g.url)}">`}${
+    g.title ? `<span class="cap">${esc(g.title)}</span>` : ''}</button>`).join('') || '<p class="note">Aucune photo ou vidéo pour le moment.</p>';
+}
+$('#g-event').onchange = $('#g-type').onchange = renderMedia;
+$('#past-events').onclick = (e) => {
+  const id = e.target.dataset.ev; if (!id) return;
+  $('#g-event').value = id; $('#g-type').value = ''; renderMedia(); $('#media-grid').scrollIntoView({ behavior: 'smooth' });
+};
+function openLightbox(g) {
+  const ev = state.events.find(e => e.id === g.eventId);
+  $('#lb-body').innerHTML = (g.type === 'video' ? `<video controls autoplay playsinline src="${esc(g.url)}"></video>` : `<img alt="${esc(g.title)}" src="${esc(g.url)}">`) +
+    `<div><b>${esc(g.title || '')}</b><br><span>${esc(g.author)}${ev ? ' · ' + esc(ev.title) : ''} · ${esc(g.date)}</span></div><a href="${esc(g.url)}?dl=1" download>⬇ Télécharger</a>`;
+  $('#lightbox').hidden = false; $('#lb-close').focus();
+}
+function closeLightbox() { $('#lightbox').hidden = true; $('#lb-body').innerHTML = ''; }
+$('#media-grid').onclick = (e) => { const t = e.target.closest('.tile'); if (t) openLightbox(filtered()[+t.dataset.i]); };
+$('#lb-close').onclick = closeLightbox;
+$('#lightbox').onclick = (e) => { if (e.target.id === 'lightbox') closeLightbox(); };
+addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('#lightbox').hidden) closeLightbox(); });
+function syncUploadForm() {
+  $('#u-email-wrap').hidden = !!token; $('#u-email').required = !token;
+  $('#u-note').textContent = token ? 'Connecté en administrateur : vos envois sont publiés immédiatement.' : 'Réservé aux membres inscrits. Les envois sont publiés après validation par un administrateur.';
+  if (!token && !$('#u-email').value) { try { $('#u-email').value = localStorage.getItem('memberEmail') || ''; } catch {} }
+}
+$('#upload-form').onsubmit = async (e) => {
+  e.preventDefault();
+  const files = [...$('#u-files').files]; if (!files.length) return;
+  const btn = $('#u-btn'); btn.disabled = true; let ok = 0, msg = '';
+  for (const [i, f] of files.entries()) {
+    btn.textContent = `Envoi ${i + 1}/${files.length}…`;
+    const fd = new FormData(); fd.append('title', $('#u-title').value); fd.append('eventId', $('#u-event').value);
+    fd.append('email', $('#u-email').value); fd.append('file', f);
+    try {
+      const res = await fetch('/api/gallery', { method: 'POST', body: fd, headers: token ? { Authorization: 'Bearer ' + token } : {} });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(f.name + ' : ' + (data.error || 'Erreur serveur'));
+      ok++; msg = data.message;
+    } catch (err) { toast(err.message, true); break; }
+  }
+  btn.disabled = false; btn.textContent = 'Envoyer';
+  if (ok) { toast(ok > 1 ? ok + ' fichiers envoyés. ' + msg : msg); $('#u-files').value = ''; $('#u-title').value = '';
+    try { if ($('#u-email').value) localStorage.setItem('memberEmail', $('#u-email').value); } catch {}
+    loadAll(); }
 };
 
 /* ---------- Démarrage ---------- */

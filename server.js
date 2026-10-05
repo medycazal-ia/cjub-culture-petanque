@@ -3,11 +3,13 @@ const express = require('express');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
+const multer = require('multer');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
 const DB_FILE = path.join(__dirname, 'data', 'db.json');
+const UPLOAD_DIR = path.join(__dirname, 'data', 'uploads');
 
 app.use(express.json({ limit: '50kb' }));
 app.use(express.static(path.join(__dirname, 'public')));
@@ -24,6 +26,7 @@ const DEFAULTS = {
     whatsapp: 'https://wa.me/596696123456'
   },
   events: [
+    { id: 5, title: 'Tournoi de rentrée', date: '2026-09-20', time: '09:00', location: 'La Crique', description: 'Tournoi d\'ouverture de la saison.', status: 'Terminé' },
     { id: 1, title: 'Tournoi du mois', date: '2026-11-15', time: '14:00', location: 'La Crique', description: 'Tournoi convivial ouvert à tous les niveaux.', status: 'Ouvert' },
     { id: 2, title: 'Championnat régional', date: '2026-11-22', time: '09:00', location: 'Fort-de-France', description: 'Compétition officielle.', status: 'Ouvert' }
   ],
@@ -32,7 +35,7 @@ const DEFAULTS = {
     { id: 2, name: 'Boules de pétanque', description: 'Set de 3 boules', price: 120 },
     { id: 3, name: 'Casquette du club', description: 'Casquette brodée', price: 15 }
   ],
-  members: [], registrations: [], orders: [],
+  members: [], registrations: [], orders: [], gallery: [],
   comments: [
     { id: 2, author: 'Pierre Leclerc', text: 'Excellente organisation, merci !', eventId: 1, status: 'approved', date: '2026-10-01' }
   ]
@@ -40,7 +43,7 @@ const DEFAULTS = {
 
 let db;
 function load() {
-  try { db = JSON.parse(fs.readFileSync(DB_FILE, 'utf8')); }
+  try { db = JSON.parse(fs.readFileSync(DB_FILE, 'utf8')); db.gallery = db.gallery || []; }
   catch { db = JSON.parse(JSON.stringify(DEFAULTS)); save(); }
 }
 function save() {
@@ -79,10 +82,14 @@ app.post('/api/admin/login', (req, res) => {
   sessions.set(token, Date.now() + SESSION_MS);
   res.json({ token });
 });
-function admin(req, res, next) {
-  const token = (req.get('authorization') || '').replace(/^Bearer /, '');
+function isAdmin(token) {
   const exp = sessions.get(token);
-  if (!exp || exp < Date.now()) { sessions.delete(token); return res.status(401).json({ error: 'Non autorisé.' }); }
+  if (!exp || exp < Date.now()) { sessions.delete(token); return false; }
+  return true;
+}
+const bearer = (req) => (req.get('authorization') || '').replace(/^Bearer /, '');
+function admin(req, res, next) {
+  if (!isAdmin(bearer(req))) return res.status(401).json({ error: 'Non autorisé.' });
   next();
 }
 
@@ -149,10 +156,79 @@ app.post('/api/checkout', (req, res) => {
   res.status(201).json({ orderId: order.id, total, message: 'Commande n°' + order.id + ' enregistrée. Règlement et retrait au club.' });
 });
 
+
+/* ---------- Galerie (photos & vidéos, modérées) ---------- */
+fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+const MIME = { 'image/jpeg': ['.jpg', 'image'], 'image/png': ['.png', 'image'], 'image/webp': ['.webp', 'image'],
+  'image/gif': ['.gif', 'image'], 'video/mp4': ['.mp4', 'video'], 'video/webm': ['.webm', 'video'], 'video/quicktime': ['.mov', 'video'] };
+const MAX_IMAGE = 10 * 1024 * 1024, MAX_VIDEO = 100 * 1024 * 1024;
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: UPLOAD_DIR,
+    filename: (_req, file, cb) => cb(null, crypto.randomBytes(12).toString('hex') + (MIME[file.mimetype] || ['.bin'])[0])
+  }),
+  limits: { fileSize: MAX_VIDEO, files: 1 },
+  fileFilter: (_req, file, cb) => cb(MIME[file.mimetype] ? null : new Error('Format non accepté (JPG, PNG, WebP, GIF, MP4, WebM, MOV).'), !!MIME[file.mimetype])
+});
+// Vérifie que le contenu correspond bien à un format image/vidéo (pas seulement l'en-tête déclaré).
+function sniff(file) {
+  const b = Buffer.alloc(12); const fd = fs.openSync(file, 'r'); fs.readSync(fd, b, 0, 12, 0); fs.closeSync(fd);
+  const hex = b.toString('hex'), ascii = b.toString('latin1');
+  return hex.startsWith('ffd8ff') || hex.startsWith('89504e47') || ascii.startsWith('GIF8') ||
+    (ascii.startsWith('RIFF') && ascii.slice(8, 12) === 'WEBP') || ascii.slice(4, 8) === 'ftyp' || hex.startsWith('1a45dfa3');
+}
+const publicItem = ({ id, type, file, title, eventId, author, date }) => ({ id, type, url: '/media/' + file, title, eventId, author, date });
+
+app.get('/api/gallery', (_req, res) => res.json(db.gallery.filter(g => g.status === 'approved').map(publicItem)));
+
+// Fichiers : publics une fois approuvés ; en attente = visibles seulement par un admin (?t=jeton).
+app.get('/media/:file', (req, res) => {
+  const item = db.gallery.find(g => g.file === req.params.file);
+  if (!item || (item.status !== 'approved' && !isAdmin(String(req.query.t || '')))) return res.status(404).end();
+  res.set('X-Content-Type-Options', 'nosniff');
+  if (req.query.dl) res.attachment(item.title ? item.title.replace(/[^\w\-. ]+/g, '_') + path.extname(item.file) : item.file);
+  res.sendFile(path.join(UPLOAD_DIR, item.file), { headers: { 'Cache-Control': item.status === 'approved' ? 'public, max-age=86400' : 'private, no-store' } });
+});
+
+app.post('/api/gallery', (req, res) => {
+  upload.single('file')(req, res, (e) => {
+    const file = req.file;
+    const drop = () => { if (file) fs.unlink(file.path, () => {}); };
+    if (e) return res.status(e.code === 'LIMIT_FILE_SIZE' ? 413 : 400).json({ error: e.code === 'LIMIT_FILE_SIZE' ? 'Fichier trop volumineux (max 100 Mo).' : e.message });
+    if (!file) return res.status(400).json({ error: 'Aucun fichier reçu.' });
+    const type = MIME[file.mimetype][1];
+    if (!sniff(file.path)) { drop(); return res.status(400).json({ error: 'Le fichier n\'est pas une image ou une vidéo valide.' }); }
+    if (type === 'image' && file.size > MAX_IMAGE) { drop(); return res.status(413).json({ error: 'Photo trop volumineuse (max 10 Mo).' }); }
+    const asAdmin = isAdmin(bearer(req));
+    const email = str(req.body.email, 150).toLowerCase();
+    const member = db.members.find(m => m.email === email);
+    if (!asAdmin && !member) { drop(); return res.status(403).json({ error: 'Seuls les membres inscrits peuvent proposer des photos ou vidéos. Inscrivez-vous d\'abord.' }); }
+    if (!asAdmin && db.gallery.filter(g => g.email === email && g.status === 'pending').length >= 10) {
+      drop(); return res.status(429).json({ error: 'Vous avez déjà 10 envois en attente de modération.' });
+    }
+    const ev = db.events.find(x => x.id === +req.body.eventId);
+    const item = { id: nextId(), type, file: file.filename, title: str(req.body.title, 120), eventId: ev ? ev.id : null,
+      author: asAdmin ? 'Administration' : member.name, email: asAdmin ? '' : email, status: asAdmin ? 'approved' : 'pending', date: today() };
+    db.gallery.push(item); save();
+    res.status(201).json({ message: asAdmin ? 'Publié dans la galerie.' : 'Merci ! Votre envoi sera publié après validation par un administrateur.' });
+  });
+});
+app.patch('/api/admin/gallery/:id', admin, (req, res) => {
+  const g = db.gallery.find(x => x.id === +req.params.id);
+  if (!g) return res.status(404).json({ error: 'Introuvable.' });
+  if (req.body.status !== 'approved') return res.status(400).json({ error: 'Statut invalide.' });
+  g.status = 'approved'; save(); res.json({ ok: true });
+});
+app.delete('/api/gallery/:id', admin, (req, res) => {
+  const i = db.gallery.findIndex(x => x.id === +req.params.id);
+  if (i < 0) return res.status(404).json({ error: 'Introuvable.' });
+  const [g] = db.gallery.splice(i, 1); fs.unlink(path.join(UPLOAD_DIR, g.file), () => {}); save(); res.json({ ok: true });
+});
+
 /* ---------- API admin ---------- */
 app.get('/api/admin/overview', admin, (_req, res) => res.json({
   members: db.members, registrations: db.registrations, orders: db.orders,
-  comments: db.comments
+  comments: db.comments, gallery: db.gallery
 }));
 
 const del = (key) => (req, res) => {

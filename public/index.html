@@ -15,7 +15,7 @@
   <a class="brand" href="#home"><img src="logo.png" alt="">Culture Pétanque</a>
   <button class="burger" id="burger" aria-label="Menu" aria-expanded="false">☰</button>
   <nav id="menu">
-    <a href="#home">Accueil</a><a href="#events">Événements</a><a href="#shop">Boutique</a>
+    <a href="#home">Accueil</a><a href="#events">Événements</a><a href="#gallery">Galerie</a><a href="#shop">Boutique</a>
     <a href="#members">Membres</a><a href="#admin">Admin</a>
   </nav>
 </header>
@@ -63,6 +63,27 @@
     </form>
   </section>
 
+  <section id="gallery" class="page wrap">
+    <h2 class="title">Galerie</h2>
+    <h3 class="sub first">Événements passés</h3>
+    <div id="past-events" class="grid"></div>
+    <h3 class="sub">Photos et vidéos</h3>
+    <div class="filters">
+      <label>Événement<select id="g-event"></select></label>
+      <label>Type<select id="g-type"><option value="">Tout</option><option value="image">Photos</option><option value="video">Vidéos</option></select></label>
+    </div>
+    <div id="media-grid" class="media-grid"></div>
+    <form id="upload-form" class="panel narrow-form">
+      <h3>Ajouter des photos ou vidéos</h3>
+      <label>Fichiers (JPG, PNG, WebP, GIF jusqu'à 10 Mo · MP4, WebM, MOV jusqu'à 100 Mo)<input id="u-files" name="file" type="file" multiple required accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime"></label>
+      <label>Titre (facultatif)<input id="u-title" name="title" maxlength="120"></label>
+      <label>Événement<select id="u-event" name="eventId"></select></label>
+      <label id="u-email-wrap">Email de membre<input id="u-email" name="email" type="email" maxlength="150" placeholder="L'email utilisé à l'inscription"></label>
+      <button class="btn primary" id="u-btn">Envoyer</button>
+      <p class="note" id="u-note">Réservé aux membres inscrits. Les envois sont publiés après validation par un administrateur.</p>
+    </form>
+  </section>
+
   <section id="shop" class="page wrap">
     <h2 class="title">Boutique</h2>
     <div id="products" class="grid three"></div>
@@ -102,6 +123,7 @@
   <p>© <span id="year"></span> <span data-s="clubName">Club Culture Pétanque</span> — <span data-s="address"></span></p>
   <p><a data-href="mailto:email" data-s="email"></a> · <a data-href="tel:phone" data-s="phone"></a> · <a data-href="facebook" target="_blank" rel="noopener">Facebook</a> · <a data-href="whatsapp" target="_blank" rel="noopener">WhatsApp</a></p>
 </footer>
+<div id="lightbox" hidden><button id="lb-close" class="btn small" aria-label="Fermer">✕</button><div id="lb-body"></div></div>
 <div id="toast" role="status"></div>
 <script src="app.js"></script>
 </body>
