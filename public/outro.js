@@ -19,7 +19,7 @@
   const rnd = (a, b) => a + Math.random() * (b - a);
 
   /* ---------- Chronologie (secondes) ---------- */
-  const FADE_IN = 1.0, TOAST = [4.6, 5.2], LOWER = [6.6, 7.2], IRIS = [7.2, 8.1], CROSS = [8.0, 8.5], TEXT_AT = 8.4, LOGO_OUT = [9.6, 10.5], END = 10.6, AUDIO_LEN = 10.8;   // l'ouverture se referme en cercle -> logo -> texte -> le logo dézoome et disparaît
+  const FADE_IN = 1.0, TOAST = [4.6, 5.2], LOWER = [6.6, 7.2], IRIS = [7.2, 8.1], CROSS = [8.0, 8.5], THANKS_AT = 1.6, TEXT_AT = 8.3, LOGO_OUT = [9.6, 10.5], END = 10.6, AUDIO_LEN = 10.8;   // l'ouverture se referme en cercle -> logo -> texte -> le logo dézoome et disparaît
   const LAUGH = [[3.2, 1], [5.5, 1.3], [6.0, 1.1]], CLINKS = [5.0, 5.13, 5.24];
 
   /* ---------- Mise en page ---------- */
@@ -388,11 +388,12 @@
   /* ---------- Boucle ---------- */
   let raf = 0, t0 = null, running = false, mode = 'quit', playId = 0;
   function setStage(t) {                                                         // texte, position du texte, boutons
+    box.classList.toggle('thanking', t >= THANKS_AT && t < IRIS[0]);                // « Ludo et Stella vous remercient… » pendant la scène, il s'efface quand elle se referme
     box.classList.toggle('texting', t >= TEXT_AT);
     $card.style.setProperty('--ty', (t >= LOGO_OUT[0] + 0.45 ? tyFinal : tyInit) + 'px');
   }
   function showCard() {
-    running = false; cancelAnimationFrame(raf); box.classList.add('closed', 'texting'); $card.style.setProperty('--ty', tyFinal + 'px');
+    running = false; cancelAnimationFrame(raf); box.classList.remove('thanking'); box.classList.add('closed', 'texting'); $card.style.setProperty('--ty', tyFinal + 'px');
     g.setTransform(dpr, 0, 0, dpr, 0, 0); g.fillStyle = '#080204'; g.fillRect(0, 0, W, H); $back.focus({ preventScroll: true });
   }
   function frame(now) {
@@ -402,15 +403,15 @@
   }
   function stopAudio() { if (mix && ac) { try { mix.gain.cancelScheduledValues(ac.currentTime); mix.gain.setTargetAtTime(0, ac.currentTime, 0.12); } catch (e) {} } }
   function play(m) {
-    mode = m || 'quit'; box.hidden = false; box.classList.remove('closed', 'texting'); $hint.hidden = true; root.classList.add('outro-on');
-    $msg.textContent = mode === 'logout' ? 'Vous êtes déconnecté. Merci de votre visite, à bientôt !' : 'Merci de votre visite, à bientôt !';
+    mode = m || 'quit'; box.hidden = false; box.classList.remove('closed', 'texting', 'thanking'); $hint.hidden = true; root.classList.add('outro-on');
+    $msg.textContent = mode === 'logout' ? 'Vous êtes déconnecté. À bientôt !' : 'À bientôt !';
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) { layout(); showCard(); return; }       // sans animation : on affiche directement le message
     layout(); initAudio(); sndLabel(); if (ac && ac.state !== 'running') ac.resume().catch(() => {});
     const id = ++playId, began = performance.now(); t0 = null; running = true; $skip.focus({ preventScroll: true }); raf = requestAnimationFrame(frame);
     if (ac) decodeAll().then(() => { if (running && id === playId) startAudio((performance.now() - began) / 1000); });
   }
   function skip() { if (!running) return; playId++; stopAudio(); showCard(); }
-  function back() { playId++; stopAudio(); running = false; cancelAnimationFrame(raf); box.hidden = true; box.classList.remove('closed', 'texting'); root.classList.remove('outro-on'); window.scrollTo(0, 0); }
+  function back() { playId++; stopAudio(); running = false; cancelAnimationFrame(raf); box.hidden = true; box.classList.remove('closed', 'texting', 'thanking'); root.classList.remove('outro-on'); window.scrollTo(0, 0); }
   $skip.addEventListener('click', skip); $back.addEventListener('click', back);
   $close.addEventListener('click', () => { window.close(); setTimeout(() => { $hint.hidden = false; }, 200); });   // ne fonctionne que si le navigateur l'autorise
   addEventListener('keydown', (e) => { if (!box.hidden && running && (e.key === 'Escape' || e.key === 'Enter')) skip(); else if (!box.hidden && !running && e.key === 'Escape') back(); });

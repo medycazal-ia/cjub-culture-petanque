@@ -198,3 +198,5 @@ footer{padding-bottom:max(2rem,env(safe-area-inset-bottom))}
 .intro-on.intro-landing .map-logo{opacity:.85;transition:opacity .4s ease;animation:zoom 2.6s ease-in-out infinite}
 #intro.out{transition:opacity .4s ease-in}
 #intro.opening .intro-btn{opacity:0;pointer-events:none;transition:opacity .3s}
+#outro-thanks{position:absolute;left:0;right:0;top:max(11%,4.2rem);text-align:center;padding:0 1.2rem;color:#fff1f2;font-family:"Cormorant Garamond",Georgia,serif;font-weight:600;font-size:clamp(1.5rem,4.4vw,2.8rem);line-height:1.15;text-wrap:balance;text-shadow:0 2px 22px rgba(255,90,110,.55),0 0 3px rgba(0,0,0,.55);opacity:0;transform:translateY(8px);transition:opacity 1s ease,transform 1s ease;pointer-events:none}
+#outro.thanking #outro-thanks{opacity:1;transform:none}
