@@ -24,7 +24,10 @@
   function nom(f) { return f.replace(/\.[^.]+$/, ''); }
   function mmss(s) { s = Math.max(0, s); return Math.floor(s / 60) + ':' + ('0' + Math.floor(s % 60)).slice(-2); }
   function num(x, d, a, b) { x = parseFloat(x); if (!isFinite(x)) x = d; return Math.min(b, Math.max(a, x)); }
-  var TRANS = [['fondu', 'Fondu enchaîné'], ['noir', 'Fondu par le noir'], ['glisse', 'Glissement'], ['zoom', 'Zoom'], ['aucune', 'Coupure franche']];
+  var TRANS = [['fondu', 'Fondu enchaîné'], ['noir', 'Fondu par le noir'], ['glisse', 'Glissement'], ['zoom', 'Zoom'], ['blanc', 'Flash blanc'], ['haut', 'Glissement vers le haut'], ['volet', 'Volet (balayage)'], ['cercle', 'Ouverture en cercle'], ['aucune', 'Coupure franche']];
+  var EFFETS = [['aucun', 'Aucun effet'], ['nb', 'Noir et blanc'], ['sepia', 'Sépia'], ['vif', 'Couleurs vives'], ['delave', 'Délavé'], ['chaud', 'Teinte chaude'], ['froid', 'Teinte froide'], ['clair', 'Plus lumineux'], ['sombre', 'Plus sombre'], ['flou', 'Flou doux'], ['negatif', 'Négatif'], ['vignette', 'Vignette (bords sombres)'], ['film', 'Vieux film']];
+  var MOUV = [['defaut', 'Selon le réglage général'], ['aucun', 'Fixe'], ['zoom+', 'Zoom avant lent'], ['zoom-', 'Zoom arrière lent'], ['gauche', 'Panoramique vers la gauche'], ['droite', 'Panoramique vers la droite']];
+  function options(l) { return l.map(function (x) { return '<option value="' + x[0] + '">' + x[1] + '</option>'; }).join(''); }
 
   var CSS = '\
 :host{display:block;--mms-a:#c41e3a;font:16px/1.5 system-ui,Segoe UI,Roboto,Arial,sans-serif;color:#1a1a1a}*{box-sizing:border-box}\
@@ -44,7 +47,9 @@ button.petit{padding:.05rem .4rem;font-size:.85rem}.barre{display:flex;flex-wrap
 .reg{display:grid;grid-template-columns:1fr 1fr;gap:.3rem .8rem;font-size:.92rem;background:#fff;border:1px solid rgba(0,0,0,.14);padding:.5rem}\
 canvas{width:100%;aspect-ratio:16/9;background:#000;display:block;border:1px solid rgba(0,0,0,.25)}\
 .trans{display:flex;gap:.5rem;align-items:center;margin-top:.4rem}.trans input[type=range]{flex:1}\
-#lanes{position:relative;margin-top:.5rem;background:#fff;border:1px solid rgba(0,0,0,.14);padding:.3rem 0}.lane{position:relative;height:1.5rem;margin:.15rem 0;cursor:pointer}\
+#lanes{display:flex;margin-top:.4rem;background:#fff;border:1px solid rgba(0,0,0,.14);padding:.2rem 0}.labs{flex:none;width:13rem}.zone{position:relative;flex:1;cursor:pointer}\
+.lab,.rang{height:1.7rem;margin:.15rem 0;position:relative}.lab{display:flex;align-items:center;gap:.25rem;padding:0 .3rem;font-size:.78rem;white-space:nowrap}.lab span{flex:1;overflow:hidden;text-overflow:ellipsis}.lab button{font-size:.7rem;padding:0 .3rem;white-space:nowrap}\
+.bl.off{opacity:.3;background-image:repeating-linear-gradient(45deg,transparent 0 4px,rgba(255,255,255,.55) 4px 8px)}li.coupe{opacity:.55}\
 .bl{position:absolute;top:0;bottom:0;background:var(--mms-a);opacity:.85;color:#fff;font-size:.7rem;overflow:hidden;white-space:nowrap;padding:0 .2rem;border-right:1px solid #fff}\
 .bl.s{background:#2b6cb0}.bl.t{background:#6b5b95}#tete{position:absolute;top:0;bottom:0;width:2px;background:#000;pointer-events:none}\
 #etat,#expetat{min-height:1.4em;font-weight:700}';
@@ -57,7 +62,7 @@ canvas{width:100%;aspect-ratio:16/9;background:#000;display:block;border:1px sol
 <p class="note">ou glissez-les ici : <b>photos</b>, <b>vidéos</b> et <b>sons</b> (mp3, wav, m4a, ogg…). Les photos, vidéos et textes forment l\'image ; les sons forment les bandes son, <b>jouées en même temps</b>.</p>\
 <input type="file" id="fichiers" accept="video/*,audio/*,image/*,.mp4,.m4v,.mov,.webm,.mp3,.wav,.m4a,.ogg,.flac,.opus,.jpg,.jpeg,.png,.gif,.webp,.avif,.bmp,.svg" multiple hidden></div>\
 <h2>2. Images, vidéos et textes (dans l\'ordre)</h2><ol id="liste"></ol>\
-<div class="barre"><label>Même transition pour tous : <select id="gtrans"></select></label></div>\
+<div class="barre"><label>Même transition pour tous : <select id="gtrans"></select></label> <label>Même effet pour tous : <select id="geffet"></select></label></div>\
 <h2>3. Bandes son (en parallèle)</h2><ol id="pistes"></ol>\
 <h2>4. Réglages</h2>\
 <div class="reg"><label>Durée des transitions <input type="number" id="gdur" min="0.2" max="5" step="0.1"> s</label>\
@@ -70,6 +75,7 @@ canvas{width:100%;aspect-ratio:16/9;background:#000;display:block;border:1px sol
 <canvas id="cv"></canvas>\
 <div class="trans"><span id="tps">0:00 / 0:00</span><input type="range" id="curseur" min="0" max="1000" value="0" aria-label="Position"></div>\
 <div class="barre"><button id="lire" class="plein">▶ Lire</button><button id="arreter" disabled>⏹ Arrêter</button><button id="plein">⛶ Plein écran</button></div>\
+<div class="barre"><button id="lire2" class="plein">▶ Lire</button><button id="arreter2" disabled>⏹ Arrêter</button><span class="note">Une ligne par fichier. « Actif / Coupé » l\'inclut ou l\'exclut du montage (aperçu et fichier final). Cliquez dans les barres pour aller à un endroit.</span></div>\
 <div id="lanes"></div><div id="etat" role="status"></div>\
 <div class="barre"><button id="exporter" class="plein">💾 Enregistrer en un seul fichier</button></div>\
 <p class="note" id="expetat" role="status"></p>\
@@ -88,8 +94,9 @@ canvas{width:100%;aspect-ratio:16/9;background:#000;display:block;border:1px sol
       $('titre').textContent = this.getAttribute('titre') || 'Montage avec transitions et bandes son';
       this.cv = $('cv'); this.cv.width = this.W; this.cv.height = this.H; this.g = this.cv.getContext('2d');
       $('gdur').value = num(this.getAttribute('duree-transition'), 1, 0.2, 5);
-      var opts = TRANS.map(function (x) { return '<option value="' + x[0] + '">' + x[1] + '</option>'; }).join('');
-      $('gtrans').innerHTML = opts;
+      var opts = options(TRANS);
+      $('gtrans').innerHTML = opts; $('geffet').innerHTML = options(EFFETS);
+      $('geffet').onchange = function () { self.clips.forEach(function (c) { c.effet = $('geffet').value; }); self.dessiner(); };
       $('gtrans').onchange = function () { self.transDefaut = $('gtrans').value; self.clips.forEach(function (c) { c.trans = self.transDefaut; }); self.dessiner(); };
       ['gdur', 'ken', 'cover', 'fadin', 'fadout'].forEach(function (id) { $(id).onchange = function () { self.dessiner(); }; });
       $('choisir').onclick = function () { $('fichiers').click(); };
@@ -101,10 +108,10 @@ canvas{width:100%;aspect-ratio:16/9;background:#000;display:block;border:1px sol
       dp.addEventListener('drop', function (e) { self.ajouter(e.dataTransfer.files); });
       $('lire').onclick = function () { if (self.etat === 'lecture') self.pause(); else self.lire(); };
       $('arreter').onclick = function () { self.arreter(); };
+      $('lire2').onclick = function () { $('lire').click(); }; $('arreter2').onclick = function () { self.arreter(); };
       $('plein').onclick = function () { (self.cv.requestFullscreen || self.cv.webkitRequestFullscreen || function () {}).call(self.cv); };
       $('curseur').oninput = function () { self.aller(($('curseur').value / 1000) * self.total); };
-      $('lanes').onclick = function (e) { var b = $('lanes').getBoundingClientRect(); self.aller(Math.min(1, Math.max(0, (e.clientX - b.left) / b.width)) * self.total); };
-      $('exporter').onclick = function () { self.exporter(); };
+            $('exporter').onclick = function () { self.exporter(); };
       this.dessiner();
     }
     /* ---------- ajout ---------- */
@@ -115,11 +122,11 @@ canvas{width:100%;aspect-ratio:16/9;background:#000;display:block;border:1px sol
       l.forEach(function (f) {
         var g = genre(f), url = URL.createObjectURL(f), it = { id: ++self.uid, genre: g, titre: nom(f.name), url: url, file: f };
         if (g === 'audio') {
-          Object.assign(it, { start: 0, vol: 1, fi: 1, fo: 1, loop: false, sec: 0, buf: null });
+          Object.assign(it, { start: 0, vol: 1, fi: 1, fo: 1, loop: false, sec: 0, buf: null, actif: true });
           self.decoder(f).then(function (b) { it.buf = b; it.sec = b ? b.duration : 0; self.dessiner(); });
           self.pistes.push(it);
         } else {
-          Object.assign(it, { trans: self.transDefaut, legende: '', son: true, vol: 1, dur: self.dureeImage, ouvert: false });
+          Object.assign(it, { trans: self.transDefaut, legende: '', son: true, vol: 1, dur: self.dureeImage, ouvert: false, actif: true, effet: self.$('geffet').value, mouv: 'defaut' });
           if (g === 'image') { it.el = new Image(); it.el.onload = function () { self.rendre(); }; it.el.src = url; }
           else {
             var v = document.createElement('video'); v.muted = true; v.playsInline = true; v.preload = 'auto'; it.el = v; it.dur = 5;
@@ -134,7 +141,7 @@ canvas{width:100%;aspect-ratio:16/9;background:#000;display:block;border:1px sol
       this.dessiner();
     }
     ajouterTexte(texte) {
-      this.clips.push({ id: ++this.uid, genre: 'texte', titre: 'Texte', texte: texte || '', bg: '#000000', fg: '#ffffff', trans: this.transDefaut, legende: '', dur: 4, ouvert: true });
+      this.clips.push({ id: ++this.uid, genre: 'texte', titre: 'Texte', texte: texte || '', bg: '#000000', fg: '#ffffff', trans: this.transDefaut, legende: '', dur: 4, ouvert: true, actif: true, effet: this.$('geffet').value, mouv: 'defaut' });
       this.dessiner();
     }
     decoder(f) {
@@ -144,18 +151,18 @@ canvas{width:100%;aspect-ratio:16/9;background:#000;display:block;border:1px sol
     }
     /* ---------- calcul de la chronologie ---------- */
     recalculer() {
-      var gd = num(this.$('gdur').value, 1, 0.2, 5), c = this.clips, s = 0;
-      c.forEach(function (x, i) {
-        var nx = c[i + 1]; x.tout = nx && x.trans !== 'aucune' ? Math.min(gd, x.dur * 0.5, nx.dur * 0.5) : 0;
-      });
+      var gd = num(this.$('gdur').value, 1, 0.2, 5), c = this.clips.filter(function (x) { return x.actif; }), s = 0;
+      this.clips.forEach(function (x) { if (!x.actif) { x.start = x.fin = -1; x.tin = x.tout = 0; x.prec = null; } });
+      c.forEach(function (x, i) { var nx = c[i + 1]; x.tout = nx && x.trans !== 'aucune' ? Math.min(gd, x.dur * 0.5, nx.dur * 0.5) : 0; x.prec = c[i - 1] || null; });
       c.forEach(function (x, i) { x.tin = i ? c[i - 1].tout : 0; x.start = s; x.fin = s + x.dur; s = x.fin - x.tout; });
-      this.total = c.length ? Math.max.apply(null, c.map(function (x) { return x.fin; })) : Math.max.apply(null, [0].concat(this.pistes.map(function (p) { return p.start + p.sec; })));
+      var pistes = this.pistes.filter(function (p) { return p.actif; });
+      this.total = c.length ? Math.max.apply(null, c.map(function (x) { return x.fin; })) : Math.max.apply(null, [0].concat(pistes.map(function (p) { return p.start + p.sec; })));
     }
     evenementsSon() {
       var ev = [], total = this.total;
-      this.clips.forEach(function (c) { if (c.genre === 'video' && c.son && c.buf) ev.push({ buf: c.buf, start: c.start, len: Math.min(c.buf.duration, c.dur), vol: c.vol, fi: c.tin, fo: c.tout, loop: false }); });
+      this.clips.forEach(function (c) { if (c.actif && c.genre === 'video' && c.son && c.buf) ev.push({ buf: c.buf, start: c.start, len: Math.min(c.buf.duration, c.dur), vol: c.vol, fi: c.tin, fo: c.tout, loop: false }); });
       this.pistes.forEach(function (p) {
-        if (!p.buf || p.start >= total) return;
+        if (!p.actif || !p.buf || p.start >= total) return;
         var len = p.loop ? total - p.start : Math.min(p.buf.duration, total - p.start);
         ev.push({ buf: p.buf, start: p.start, len: len, vol: p.vol, fi: p.fi, fo: p.fo, loop: p.loop });
       });
@@ -182,10 +189,12 @@ canvas{width:100%;aspect-ratio:16/9;background:#000;display:block;border:1px sol
     }
     ligneClip(c, i) {
       var self = this, li = document.createElement('li'), last = i === this.clips.length - 1;
-      li.innerHTML = '<span class="ico">' + { image: '🖼️', video: '🎬', texte: '✏️' }[c.genre] + '</span><span class="t"></span>' +
+      if (!c.actif) li.className = 'coupe';
+      li.innerHTML = '<input type="checkbox" class="ac" title="Actif / Coupé" aria-label="Actif"><span class="ico">' + { image: '🖼️', video: '🎬', texte: '✏️' }[c.genre] + '</span><span class="t"></span>' +
         (c.genre === 'video' ? '<span>' + Math.round(c.dur) + ' s</span>' : '<span><input type="number" class="d" min="1" max="600" step="1" aria-label="Secondes"> s</span>') +
         '<select class="tr" aria-label="Transition vers la suite"></select><button class="petit ed" title="Réglages">⚙</button>';
       li.querySelector('.t').textContent = c.genre === 'texte' ? (c.texte || '').slice(0, 30) || 'Texte' : c.titre;
+      var ac = li.querySelector('.ac'); ac.checked = c.actif; ac.onchange = function () { c.actif = ac.checked; self.modifie(); };
       var d = li.querySelector('.d'); if (d) { d.value = Math.round(c.dur); d.onchange = function () { c.dur = num(d.value, 5, 1, 600); self.dessiner(); }; }
       var tr = li.querySelector('.tr'); tr.innerHTML = TRANS.map(function (x) { return '<option value="' + x[0] + '">' + x[1] + '</option>'; }).join(''); tr.value = c.trans;
       if (last) { tr.style.display = 'none'; } tr.onchange = function () { c.trans = tr.value; self.dessiner(); };
@@ -198,23 +207,27 @@ canvas{width:100%;aspect-ratio:16/9;background:#000;display:block;border:1px sol
       var self = this, p = document.createElement('div'); p.className = 'pan';
       var h = '';
       if (c.genre === 'texte') h += '<textarea rows="3" class="tx" placeholder="Votre texte"></textarea><label>Fond <input type="color" class="bg"></label><label>Texte <input type="color" class="fg"></label>';
+      h += '<label>Effet <select class="ef"></select></label><label>Mouvement <select class="mv"></select></label>';
       h += '<input type="text" class="lg" placeholder="Légende en bas de l\'image (facultatif)">';
       if (c.genre === 'video') h += '<label><input type="checkbox" class="so"> Garder le son de la vidéo</label><label>Volume <input type="range" class="vo" min="0" max="100"></label>';
       p.innerHTML = h;
       var q = function (s) { return p.querySelector(s); };
       if (q('.tx')) { q('.tx').value = c.texte; q('.tx').onchange = function () { c.texte = q('.tx').value; self.dessiner(); }; q('.bg').value = c.bg; q('.bg').onchange = function () { c.bg = q('.bg').value; self.rendre(); }; q('.fg').value = c.fg; q('.fg').onchange = function () { c.fg = q('.fg').value; self.rendre(); }; }
+      q('.ef').innerHTML = options(EFFETS); q('.ef').value = c.effet; q('.ef').onchange = function () { c.effet = q('.ef').value; self.rendre(); };
+      q('.mv').innerHTML = options(MOUV); q('.mv').value = c.mouv; q('.mv').onchange = function () { c.mouv = q('.mv').value; self.rendre(); };
       q('.lg').value = c.legende; q('.lg').onchange = function () { c.legende = q('.lg').value; self.rendre(); };
       if (q('.so')) { q('.so').checked = c.son; q('.so').onchange = function () { c.son = q('.so').checked; }; q('.vo').value = Math.round(c.vol * 100); q('.vo').onchange = function () { c.vol = q('.vo').value / 100; }; }
       return p;
     }
     lignePiste(p, i) {
-      var self = this, li = document.createElement('li'); li.className = 'piste';
-      li.innerHTML = '<span class="ico">🎵</span><span class="t"></span><span class="du"></span>' +
+      var self = this, li = document.createElement('li'); li.className = 'piste' + (p.actif ? '' : ' coupe');
+      li.innerHTML = '<input type="checkbox" class="ac" title="Actif / Coupé" aria-label="Actif"><span class="ico">🎵</span><span class="t"></span><span class="du"></span>' +
         '<div class="pan" style="border:0"><label>Début <input type="number" class="st" min="0" step="1"> s</label><label>Volume <input type="range" class="vo" min="0" max="100"></label>' +
         '<label>Fondu entrée <input type="number" class="fi" min="0" max="30" step="0.5"> s</label><label>Fondu sortie <input type="number" class="fo" min="0" max="30" step="0.5"> s</label>' +
         '<label><input type="checkbox" class="lp"> Répéter jusqu\'à la fin</label></div>';
       li.querySelector('.t').textContent = p.titre; li.querySelector('.du').textContent = p.buf ? Math.round(p.sec) + ' s' : (p.sec === 0 ? '(lecture impossible ?)' : '');
       var q = function (s) { return li.querySelector(s); };
+      q('.ac').checked = p.actif; q('.ac').onchange = function () { p.actif = q('.ac').checked; self.modifie(); };
       q('.st').value = p.start; q('.st').onchange = function () { p.start = num(q('.st').value, 0, 0, 36000); self.dessiner(); };
       q('.vo').value = Math.round(p.vol * 100); q('.vo').onchange = function () { p.vol = q('.vo').value / 100; };
       q('.fi').value = p.fi; q('.fi').onchange = function () { p.fi = num(q('.fi').value, 1, 0, 30); };
@@ -222,13 +235,26 @@ canvas{width:100%;aspect-ratio:16/9;background:#000;display:block;border:1px sol
       q('.lp').checked = p.loop; q('.lp').onchange = function () { p.loop = q('.lp').checked; self.dessiner(); };
       this.boutons(li, this.pistes, i); return li;
     }
+    modifie() { this.dessiner(); if (this.etat === 'lecture') this.lire(Math.min(this.t, this.total)); }
     majLanes() {
-      var L = this.$('lanes'), T = Math.max(this.total, 0.001), h = '<div class="lane">';
-      this.clips.forEach(function (c) { h += '<div class="bl' + (c.genre === 'texte' ? ' t' : '') + '" style="left:' + c.start / T * 100 + '%;width:' + c.dur / T * 100 + '%">' + { image: '🖼️', video: '🎬', texte: '✏️' }[c.genre] + '</div>'; });
-      h += '</div>';
-      var tot = this.total;
-      this.pistes.forEach(function (p) { var len = p.loop ? tot - p.start : Math.min(p.sec, tot - p.start); h += '<div class="lane"><div class="bl s" style="left:' + p.start / T * 100 + '%;width:' + Math.max(0, len) / T * 100 + '%">🎵</div></div>'; });
-      L.innerHTML = h + '<div id="tete"></div>';
+      var self = this, L = this.$('lanes'), T = Math.max(this.total, 0.001), tot = this.total; L.innerHTML = '';
+      var labs = document.createElement('div'), zone = document.createElement('div'); labs.className = 'labs'; zone.className = 'zone';
+      var ligne = function (texte, actif, bascule) {
+        var lb = document.createElement('div'); lb.className = 'lab'; var sp = document.createElement('span'); sp.textContent = texte; sp.title = texte; lb.appendChild(sp);
+        if (bascule) { var b = document.createElement('button'); b.textContent = actif ? '✔ Actif' : '✖ Coupé'; b.setAttribute('aria-pressed', actif); b.title = 'Activer / désactiver'; b.onclick = function (e) { e.stopPropagation(); bascule(); }; lb.appendChild(b); }
+        labs.appendChild(lb); var rg = document.createElement('div'); rg.className = 'rang'; zone.appendChild(rg); return rg;
+      };
+      var bloc = function (rg, cls, d, f, txt, off) { var b = document.createElement('div'); b.className = 'bl' + cls + (off ? ' off' : ''); b.style.left = d / T * 100 + '%'; b.style.width = Math.max(0, f - d) / T * 100 + '%'; b.textContent = txt; b.title = txt; rg.appendChild(b); };
+      var nomc = function (c) { return c.genre === 'texte' ? '✏️ ' + ((c.texte || 'Texte').split('\n')[0].slice(0, 24)) : (c.genre === 'video' ? '🎬 ' : '🖼️ ') + c.titre; };
+      var rv = ligne('🎞️ Images, vidéos, textes', true, null);
+      this.clips.forEach(function (c) { if (c.actif) bloc(rv, c.genre === 'texte' ? ' t' : '', c.start, c.fin, nomc(c), false); });
+      this.clips.forEach(function (c) { if (c.actif && c.genre === 'video') { var r = ligne('🔊 Son : ' + c.titre, c.son, function () { c.son = !c.son; self.modifie(); }); bloc(r, ' s', c.start, c.fin, '🔊 ' + c.titre, !c.son); } });
+      this.pistes.forEach(function (p) {
+        var r = ligne('🎵 ' + p.titre, p.actif, function () { p.actif = !p.actif; self.modifie(); });
+        var len = p.loop ? tot - p.start : Math.min(p.sec, tot - p.start); bloc(r, ' s', p.start, p.start + Math.max(0, len), '🎵 ' + p.titre, !p.actif);
+      });
+      var th = document.createElement('div'); th.id = 'tete'; zone.appendChild(th); L.appendChild(labs); L.appendChild(zone);
+      zone.onclick = function (e) { var b = zone.getBoundingClientRect(); self.aller(Math.min(1, Math.max(0, (e.clientX - b.left) / b.width)) * self.total); };
     }
     majTemps() {
       var T = Math.max(this.total, 0.001);
@@ -237,39 +263,65 @@ canvas{width:100%;aspect-ratio:16/9;background:#000;display:block;border:1px sol
       var th = this.$('tete'); if (th) th.style.left = Math.min(100, this.t / T * 100) + '%';
     }
     majBoutons() {
-      this.$('lire').textContent = this.etat === 'lecture' ? '⏸ Pause' : this.etat === 'pause' ? '▶ Reprendre' : '▶ Lire';
-      this.$('arreter').disabled = this.etat === 'arret' && this.t === 0;
+      var tx = this.etat === 'lecture' ? '⏸ Pause' : this.etat === 'pause' ? '▶ Reprendre' : '▶ Lire', off = this.etat === 'arret' && this.t === 0;
+      this.$('lire').textContent = tx; this.$('lire2').textContent = tx; this.$('arreter').disabled = off; this.$('arreter2').disabled = off;
     }
     /* ---------- dessin d'une image à l'instant t ---------- */
+    filtre(c, t) {
+      switch (c.effet) {
+        case 'nb': return 'grayscale(1)'; case 'sepia': return 'sepia(1)'; case 'vif': return 'saturate(1.7) contrast(1.1)';
+        case 'delave': return 'saturate(.45) brightness(1.1)'; case 'chaud': return 'sepia(.35) saturate(1.3) hue-rotate(-10deg)';
+        case 'froid': return 'hue-rotate(15deg) saturate(1.1) brightness(1.05)'; case 'clair': return 'brightness(1.3)'; case 'sombre': return 'brightness(.7) contrast(1.1)';
+        case 'flou': return 'blur(' + Math.round(this.H / 120) + 'px)'; case 'negatif': return 'invert(1)';
+        case 'film': return 'sepia(.8) contrast(1.15) brightness(' + (1 + 0.07 * Math.sin(t * 37) * Math.sin(t * 11)).toFixed(3) + ')';
+      }
+      return 'none';
+    }
+    mouvement(c, p, ken) {
+      p = Math.max(0, Math.min(1, p)); var m = c.mouv === 'defaut' ? (c.genre === 'image' && ken ? 'zoom+' : 'aucun') : c.mouv, W = this.W;
+      if (m === 'zoom+') return { s: 1 + 0.08 * p, dx: 0 };
+      if (m === 'zoom-') return { s: 1.08 - 0.08 * p, dx: 0 };
+      if (m === 'gauche') return { s: 1.1, dx: (0.5 - p) * 0.08 * W };
+      if (m === 'droite') return { s: 1.1, dx: (p - 0.5) * 0.08 * W };
+      return { s: 1, dx: 0 };
+    }
     rendre(t) {
       if (t === undefined) t = this.t;
       var g = this.g, W = this.W, H = this.H, self = this, cover = this.$('cover').checked, ken = this.$('ken').checked;
-      g.globalAlpha = 1; g.fillStyle = '#000'; g.fillRect(0, 0, W, H);
-      this.clips.forEach(function (c) {
-        if (t < c.start || t > c.fin) return;
-        var a = 1, dx = 0, s = 1, tin = c.tin, tout = c.tout;
-        if (tin > 0 && t < c.start + tin) {
-          var u = (t - c.start) / tin, ty = self.clips[self.clips.indexOf(c) - 1].trans;
-          if (ty === 'fondu') a = u; else if (ty === 'noir') a = Math.max(0, 2 * u - 1); else if (ty === 'glisse') dx = (1 - u) * W; else if (ty === 'zoom') { a = u; s = 0.85 + 0.15 * u; }
+      var act = this.clips.filter(function (c) { return c.actif && t >= c.start && t <= c.fin; });
+      var blanc = act.some(function (c) { return (c.tin > 0 && t < c.start + c.tin && c.prec && c.prec.trans === 'blanc') || (c.tout > 0 && t > c.fin - c.tout && c.trans === 'blanc'); });
+      g.globalAlpha = 1; g.filter = 'none'; g.fillStyle = blanc ? '#fff' : '#000'; g.fillRect(0, 0, W, H);
+      act.forEach(function (c) {
+        var a = 1, dx = 0, dy = 0, s = 1, rogner = null;
+        if (c.tin > 0 && t < c.start + c.tin && c.prec) {
+          var u = (t - c.start) / c.tin, ty = c.prec.trans;
+          if (ty === 'fondu') a = u; else if (ty === 'noir' || ty === 'blanc') a = Math.max(0, 2 * u - 1); else if (ty === 'glisse') dx = (1 - u) * W; else if (ty === 'haut') dy = (1 - u) * H;
+          else if (ty === 'zoom') { a = u; s = 0.85 + 0.15 * u; }
+          else if (ty === 'volet') rogner = function () { g.beginPath(); g.rect(0, 0, u * W, H); g.clip(); };
+          else if (ty === 'cercle') rogner = function () { g.beginPath(); g.arc(W / 2, H / 2, u * Math.hypot(W, H) / 2, 0, 6.2832); g.clip(); };
         }
-        if (tout > 0 && t > c.fin - tout) {
-          var v = (t - (c.fin - tout)) / tout;
-          if (c.trans === 'noir') a = Math.min(a, 1 - Math.min(1, 2 * v)); else if (c.trans === 'glisse') dx = -v * W; else if (c.trans === 'zoom') s = 1 + 0.15 * v;
+        if (c.tout > 0 && t > c.fin - c.tout) {
+          var v = (t - (c.fin - c.tout)) / c.tout;
+          if (c.trans === 'noir' || c.trans === 'blanc') a = Math.min(a, 1 - Math.min(1, 2 * v)); else if (c.trans === 'glisse') dx = -v * W; else if (c.trans === 'haut') dy = -v * H; else if (c.trans === 'zoom') s = 1 + 0.15 * v;
         }
-        g.save(); g.globalAlpha = Math.max(0, Math.min(1, a)); g.translate(W / 2 + dx, H / 2);
-        var p = c.dur ? (t - c.start) / c.dur : 0;
-        if (c.genre === 'texte') {
-          g.fillStyle = c.bg; g.fillRect(-W / 2, -H / 2, W, H); g.scale(s, s); self.texte(c);
-        } else {
+        a = Math.max(0, Math.min(1, a));
+        g.save(); if (rogner) rogner(); g.globalAlpha = a; g.translate(W / 2 + dx, H / 2 + dy);
+        var mv = self.mouvement(c, c.dur ? (t - c.start) / c.dur : 0, ken); g.filter = self.filtre(c, t);
+        if (c.genre === 'texte') { g.fillStyle = c.bg; g.fillRect(-W / 2, -H / 2, W, H); g.scale(s * mv.s, s * mv.s); self.texte(c); }
+        else {
           var el = c.el, w = c.genre === 'video' ? el.videoWidth : el.naturalWidth, h = c.genre === 'video' ? el.videoHeight : el.naturalHeight;
-          if (c.genre === 'image' && ken) s *= 1 + 0.08 * p;
-          if (w && h && (c.genre === 'image' || el.readyState >= 2)) { var k = (cover ? Math.max : Math.min)(W / w, H / h); g.scale(s, s); try { g.drawImage(el, -w * k / 2, -h * k / 2, w * k, h * k); } catch (e) {} }
+          if (w && h && (c.genre === 'image' || el.readyState >= 2)) { var k = (cover ? Math.max : Math.min)(W / w, H / h); g.translate(mv.dx, 0); g.scale(s * mv.s, s * mv.s); try { g.drawImage(el, -w * k / 2, -h * k / 2, w * k, h * k); } catch (e) {} }
+        }
+        g.filter = 'none';
+        if (c.effet === 'vignette' || c.effet === 'film') {
+          var gr = g.createRadialGradient(0, 0, H * 0.3, 0, 0, Math.hypot(W, H) * 0.55); gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(0,0,0,.7)');
+          g.setTransform(1, 0, 0, 1, 0, 0); g.translate(W / 2 + dx, H / 2 + dy); g.fillStyle = gr; g.fillRect(-W / 2, -H / 2, W, H);
         }
         g.restore();
-        if (c.legende) { g.save(); g.globalAlpha = Math.max(0, Math.min(1, a)); g.translate(dx, 0); self.legende(c.legende); g.restore(); }
+        if (c.legende) { g.save(); g.globalAlpha = a; g.translate(dx, dy); self.legende(c.legende); g.restore(); }
       });
       var fd = Math.min(1, this.total / 4), nuit = 0;
-      if (this.$('fadin').checked && t < fd) nuit = 1 - t / fd;
+      if (this.$('fadin').checked && t > 0.001 && t < fd) nuit = 1 - t / fd;
       if (this.$('fadout').checked && t > this.total - fd) nuit = Math.max(nuit, (t - (this.total - fd)) / fd);
       if (nuit > 0 && this.total > 0) { g.globalAlpha = Math.min(1, nuit); g.fillStyle = '#000'; g.fillRect(0, 0, W, H); g.globalAlpha = 1; }
     }
@@ -297,7 +349,7 @@ canvas{width:100%;aspect-ratio:16/9;background:#000;display:block;border:1px sol
       this.master = this.ac.createGain(); this.dest = this.ac.createMediaStreamDestination(); this.master.connect(this.dest); this.master.connect(this.ac.destination);
     }
     async preparerSons() {
-      var self = this, a = this.clips.filter(function (c) { return c.genre === 'video' && c.son && !c.buf && !c.essaye; });
+      var self = this, a = this.clips.filter(function (c) { return c.actif && c.genre === 'video' && c.son && !c.buf && !c.essaye; });
       if (!a.length) return; this.$('etat').textContent = 'Préparation des sons…';
       await Promise.all(a.map(function (c) { c.essaye = true; return self.decoder(c.file).then(function (b) { c.buf = b; }); }));
       this.$('etat').textContent = '';
@@ -319,7 +371,8 @@ canvas{width:100%;aspect-ratio:16/9;background:#000;display:block;border:1px sol
     }
     syncVideos(t, joue) {
       this.clips.forEach(function (c) {
-        if (c.genre !== 'video') return; var v = c.el, actif = t >= c.start - 0.6 && t <= c.fin, want = Math.max(0, t - c.start);
+        if (c.genre !== 'video') return; var v = c.el; if (!c.actif) { if (!v.paused) v.pause(); return; }
+        var actif = t >= c.start - 0.6 && t <= c.fin, want = Math.max(0, t - c.start);
         if (!actif) { if (!v.paused) v.pause(); return; }
         if (joue && t >= c.start) { if (v.paused) { v.currentTime = want; v.play().catch(function () {}); } else if (Math.abs(v.currentTime - want) > 0.3) v.currentTime = want; }
         else { if (!v.paused) v.pause(); var w = Math.max(0, t - c.start); if (Math.abs(v.currentTime - w) > 0.04) v.currentTime = w; }
@@ -330,14 +383,14 @@ canvas{width:100%;aspect-ratio:16/9;background:#000;display:block;border:1px sol
       var t = depuis !== undefined ? depuis : (this.etat === 'pause' ? this.t : (this.t >= this.total - 0.05 ? 0 : this.t));
       this.assurerAC(); await this.ac.resume(); await this.preparerSons();
       this.arreterSons(); this.tDebut = t; this.ctx0 = this.ac.currentTime + 0.12; this.programmerSons(t);
-      this.etat = 'lecture'; this.majBoutons(); this.$('etat').textContent = ''; this.tic();
+      this.etat = 'lecture'; this.majBoutons(); this.$('etat').textContent = ''; this.tic(this.idBoucle = (this.idBoucle || 0) + 1);
     }
-    tic() {
-      if (this.etat !== 'lecture') return;
+    tic(id) {
+      if (this.etat !== 'lecture' || id !== this.idBoucle) return;
       var t = this.tDebut + Math.max(0, this.ac.currentTime - this.ctx0), self = this;
       if (t >= this.total) { this.t = this.total; this.rendre(this.total); this.fin(); return; }
       this.t = t; this.syncVideos(t, true); this.rendre(t); this.majTemps();
-      requestAnimationFrame(function () { self.tic(); });
+      requestAnimationFrame(function () { self.tic(id); });
     }
     fin() {
       this.arreterSons(); this.syncVideos(0, false); this.etat = 'arret'; this.majBoutons(); this.majTemps();
@@ -365,7 +418,7 @@ canvas{width:100%;aspect-ratio:16/9;background:#000;display:block;border:1px sol
       if (!this.total) { et.textContent = 'Ajoutez au moins une photo, une vidéo ou un texte.'; return; }
       var mime = this.formatEnreg();
       if (!mime || !this.cv.captureStream || !(window.AudioContext || window.webkitAudioContext)) { et.textContent = 'Votre navigateur ne permet pas cet enregistrement : utilisez Google Chrome.'; return; }
-      this.arreter(); this.exportEnCours = true; var bt = this.$('exporter'); bt.disabled = true; this.$('lire').disabled = true; this.$('arreter').disabled = true;
+      this.arreter(); this.exportEnCours = true; var bt = this.$('exporter'); bt.disabled = true; this.$('lire').disabled = this.$('lire2').disabled = true; this.$('arreter').disabled = this.$('arreter2').disabled = true;
       var morceaux = [], rec = null;
       try {
         this.assurerAC(); await this.ac.resume(); await this.preparerSons();
@@ -384,7 +437,7 @@ canvas{width:100%;aspect-ratio:16/9;background:#000;display:block;border:1px sol
       } catch (e) {
         try { if (rec && rec.state !== 'inactive') rec.stop(); } catch (x) {} this.surFin = null; this.etat = 'arret'; this.arreterSons();
         et.textContent = 'L\'enregistrement a échoué (' + e.message + ').';
-      } finally { this.exportEnCours = false; bt.disabled = false; this.$('lire').disabled = false; this.majBoutons(); }
+      } finally { this.exportEnCours = false; bt.disabled = false; this.$('lire').disabled = this.$('lire2').disabled = false; this.majBoutons(); }
     }
   }
   customElements.define('montage-transitions-simplifie', MontageTransitions);
