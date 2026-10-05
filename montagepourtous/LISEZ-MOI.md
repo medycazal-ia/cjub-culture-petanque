@@ -3,6 +3,8 @@
 Outils gratuits de **montage photos / vidéos / sons**, avec **compte utilisateur gratuit** (e-mail, prénom, nom obligatoires). **Projet indépendant du site Club Culture Pétanque** : dossier, serveur, données et dépendances séparés.
 
 - **Montage avec transitions** : photos, vidéos et textes enchaînés (fondu, flash blanc, volet, cercle, glissements, zoom), effets d'image (noir et blanc, sépia, vieux film, VHS, Super 8…), mouvements, plusieurs bandes son en parallèle, une ligne par fichier avec « Actif / Coupé ».
+- **Cartes de cinéma** : titre de film, générique de fin défilant (« RÔLE | Nom »), « FIN », clap de réalisateur (avec son « clap »), compte à rebours 3-2-1, carton de film muet. **Transitions de cinéma** : iris (fermeture de film), rideau, défilement de pellicule. **Effets** : cadre pellicule + rayures, bandes noires 2,39:1. Bouton « Ambiance projecteur » : ronronnement synthétique en bande son.
+- **Pellicule animée** : pendant la lecture, les bandes de film du cadre défilent ; le bouton « ⏸ Pause pellicule » (mémorisé) l'arrête si elle gêne.
 - **Montage simple** : bout à bout de vidéos, sons et photos.
 - Les fichiers des utilisateurs **restent dans leur navigateur** (rien n'est envoyé au serveur). Enregistrement en un seul fichier (mp4 ou webm) en direct.
 - **Design** : thème « sang » (bordeaux foncé, textes clairs, par défaut) ou « classique » (clair), au choix à tout moment. Façade d'ampli années 90-2000 : boutons rotatifs (glisser, molette, flèches, double-clic = valeur d'origine), barres à LED fluo, vumètre G/D, fader de taille d'aperçu, **mode cinéma** et boutons − / + pour agrandir ou réduire la vidéo.

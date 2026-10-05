@@ -11,4 +11,11 @@
     b.forEach(function (x) { x.addEventListener('click', function () { var n = document.documentElement.getAttribute('data-theme') === 'sang' ? 'classique' : 'sang'; document.documentElement.setAttribute('data-theme', n); try { localStorage.setItem('mpt-theme', n); } catch (e) {} }); });
     new MutationObserver(maj).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] }); maj();
   });
+  // Pellicule du cadre : défile pendant la lecture d'un montage, avec un bouton pause (mémorisé).
+  var racine = document.documentElement, lecture = false, pref = true;
+  try { var d = localStorage.getItem('mpt-defile'); pref = d ? d === 'on' : !(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (e) {}
+  function majDefile() { racine.classList.toggle('defile-off', !pref); racine.classList.toggle('defile', pref && lecture); document.dispatchEvent(new CustomEvent('mpt-defile-etat', { detail: { actif: pref } })); }
+  window.addEventListener('mpt-lecture', function (e) { lecture = !!(e.detail && e.detail.en); majDefile(); });
+  document.addEventListener('mpt-defile-bascule', function () { pref = !pref; try { localStorage.setItem('mpt-defile', pref ? 'on' : 'off'); } catch (e) {} majDefile(); });
+  majDefile();
 })();

@@ -38,7 +38,7 @@
 #etat{min-height:1.5em;font-weight:700;margin-top:.4rem}';
 
   var HTML = '\
-<div class="cadre" id="cadre"><div class="entete"><h1 id="titre"></h1><button id="theme"></button></div>\
+<div class="cadre" id="cadre"><div class="entete"><h1 id="titre"></h1><span><button id="defile"></button> <button id="theme"></button></span></div>\
 <section class="gauche">\
 <h2>1. Ajoutez vos fichiers</h2>\
 <div class="depot" id="depot"><button class="plein" id="choisir">📂 Choisir des fichiers</button>\
@@ -70,6 +70,9 @@
       this.W = m ? +m[1] : 1280; this.H = m ? +m[2] : 720;
       this.dureeImage = Math.max(1, +this.getAttribute('duree-image') || 5);
       if (this.getAttribute('couleur')) this.style.setProperty('--a', this.getAttribute('couleur'));
+      var bd = $('defile'), majD = function (on) { bd.textContent = on ? '⏸ Pause pellicule' : '▶ Animer la pellicule'; };
+      bd.onclick = function () { document.dispatchEvent(new CustomEvent('mpt-defile-bascule')); };
+      document.addEventListener('mpt-defile-etat', function (e) { majD(e.detail.actif); }); majD(!(document.documentElement.classList.contains('defile-off')));
       var bt = $('theme'); MPT.suivreTheme(this, function (t) { bt.textContent = t === 'sang' ? '☀️ Thème classique' : '🌙 Thème sang'; });
       bt.onclick = function () { MPT.setTheme(MPT.getTheme() === 'sang' ? 'classique' : 'sang'); };
       this.volume = 1; $('knobvol').appendChild(MPT.knob({ label: 'Volume', min: 0, max: 150, value: 100, format: function (v) { return Math.round(v) + '%'; }, onchange: function (v) { self.volume = v / 100; if (self.gainSortie) self.gainSortie.gain.value = self.volume; else self.v.volume = Math.min(1, self.volume); } }).el);
@@ -154,7 +157,7 @@
     }
     vider() { clearTimeout(this.minuteur); this.etat = 'arret'; this.v.pause(); this.v.removeAttribute('src'); this.v.load(); this.scene.className = 'scene'; this.majEtat('arret'); }
     majEtat(e) {
-      this.etat = e; var l = this.$('lire');
+      this.etat = e; window.dispatchEvent(new CustomEvent('mpt-lecture', { detail: { en: e === 'lecture' } })); var l = this.$('lire');
       l.textContent = e === 'lecture' ? '⏸ Pause' : e === 'pause' ? '▶ Reprendre' : '▶ Lire la sélection';
       this.$('arreter').disabled = e === 'arret';
       if (e === 'pause') this.$('etat').textContent = 'En pause.';

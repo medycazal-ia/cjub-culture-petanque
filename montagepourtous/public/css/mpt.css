@@ -53,3 +53,10 @@ footer{margin-left:auto;margin-right:auto}
 @media(prefers-reduced-motion:reduce){.clap::before{animation:none!important}}
 .carte{position:relative}.carte::before{content:'';position:absolute;left:0;right:0;top:0;height:7px;background:repeating-linear-gradient(-45deg,rgba(255,255,255,.85) 0 10px,#111 10px 20px);border-radius:6px 6px 0 0;opacity:.8}
 .carte{padding-top:1.4rem}
+
+/* pellicule animée pendant la lecture (bouton « Pause pellicule » pour l'arrêter) */
+@keyframes defile{from{background-position:0 0}to{background-position:0 44px}}
+@keyframes defile-m{from{background-position:0 0}to{background-position:0 26px}}
+.defile body::before,.defile body::after{animation:defile .5s linear infinite}
+@media(max-width:700px){.defile body::before,.defile body::after{animation-name:defile-m}}
+@media(prefers-reduced-motion:reduce){.defile body::before,.defile body::after{animation:none}}
