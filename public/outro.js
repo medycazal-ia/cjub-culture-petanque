@@ -7,10 +7,11 @@
   const box = document.getElementById('outro');
   if (!box) return;
   const cv = document.getElementById('outro-canvas'), g = cv.getContext('2d');
-  const $skip = document.getElementById('outro-skip'), $snd = document.getElementById('outro-sound'), $msg = document.getElementById('outro-msg');
+  const $skip = document.getElementById('outro-skip'), $snd = document.getElementById('outro-sound'), $msg = document.getElementById('outro-msg'), $card = document.getElementById('outro-card');
   const $back = document.getElementById('outro-back'), $close = document.getElementById('outro-close'), $hint = document.getElementById('outro-hint');
 
   const TAU = Math.PI * 2;
+  const logoImg = document.querySelector('.brand img');                           // le logo du club (déjà chargé dans l'en-tête)
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const lerp = (a, b, t) => a + (b - a) * t;
   const smooth = (u) => u * u * (3 - 2 * u);
@@ -18,11 +19,11 @@
   const rnd = (a, b) => a + Math.random() * (b - a);
 
   /* ---------- Chronologie (secondes) ---------- */
-  const FADE_IN = 1.0, TOAST = [4.6, 5.2], LOWER = [6.6, 7.2], IRIS = [7.4, 8.8], END = 8.8, AUDIO_LEN = 10.8;
+  const FADE_IN = 1.0, TOAST = [4.6, 5.2], LOWER = [6.6, 7.2], IRIS = [7.2, 8.1], CROSS = [8.0, 8.5], TEXT_AT = 8.4, LOGO_OUT = [9.6, 10.5], END = 10.6, AUDIO_LEN = 10.8;   // l'ouverture se referme en cercle -> logo -> texte -> le logo dézoome et disparaît
   const LAUGH = [[3.2, 1], [5.5, 1.3], [6.0, 1.1]], CLINKS = [5.0, 5.13, 5.24];
 
   /* ---------- Mise en page ---------- */
-  let W, H, dpr, s, k, hy, ty, sx, SR, bgSky, bgLand, bgVig, motes, people, lastT = 0;
+  let Cy, Rl, tyInit, tyFinal, W, H, dpr, s, k, hy, ty, sx, SR, bgSky, bgLand, bgVig, motes, people, lastT = 0;
   const mk = () => { const c = document.createElement('canvas'); c.width = Math.round(W * dpr); c.height = Math.round(H * dpr); const x = c.getContext('2d'); x.scale(dpr, dpr); return [c, x]; };
   const PEOPLE = [
     { f: 0.12, hair: 'afro', shirt: '#7a1226', sc: 1.0, ph: 0.3, talk: 1, dl: 0.2 }, { f: 0.255, hair: 'cap', shirt: '#26121a', sc: 1.05, ph: 1.1, talk: 0, dl: 0.0 },
@@ -39,6 +40,9 @@
     sx = W * 0.7; SR = clamp(W * (portrait ? 0.1 : 0.06), 34, 110);
     people = PEOPLE.map(p => ({ ...p, x: W * p.f }));
     buildBg(); buildFx();
+    Cy = H * (portrait ? 0.3 : 0.31); Rl = clamp(Math.min(W, H) * 0.16, 46, 120);                                    // le cercle final : emplacement et taille du logo
+    tyInit = Cy + Rl + 22; tyFinal = Math.max(24, (H - $card.offsetHeight) / 2);                                       // le texte sous le logo, puis recentré quand il disparaît
+    $card.style.setProperty('--ty', tyInit + 'px');
   }
 
   /* ---------- Décor (mis en cache) ---------- */
@@ -194,7 +198,8 @@
     g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
     const dusk = smooth(clamp(t / 8.5, 0, 1)), Lb = smooth(clamp((t - 0.5) / 1.8, 0, 1)), L = 1 - 0.55 * dusk;
     const zoom = 1 + 0.05 * (1 - smooth(clamp(t / 8.6, 0, 1)));              // lent recul
-    g.translate(W / 2, ty - 0.5 * k); g.scale(zoom, zoom); g.translate(-W / 2, -(ty - 0.5 * k));
+    const ui = smooth(clamp((t - IRIS[0]) / (IRIS[1] - IRIS[0]), 0, 1)), cam = () => { g.translate(0, (Cy - (ty - 0.45 * k)) * ui); g.translate(W / 2, ty - 0.5 * k); g.scale(zoom, zoom); g.translate(-W / 2, -(ty - 0.5 * k)); };
+    cam();
     g.drawImage(bgSky, 0, 0, W, H);
     const sunY = hy - SR * 0.12 + SR * 1.3 * smooth(clamp(t / 8.4, 0, 1)), sl = 1 - 0.7 * dusk;                // le soleil se couche
     g.save(); g.beginPath(); g.rect(0, 0, W, hy); g.clip();
@@ -215,12 +220,23 @@
     backView(W * 0.075, H * 0.9, 1.25 * k, L); backView(W * 0.93, H * 0.93, 1.35 * k, L);
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     g.fillStyle = `rgba(14,3,10,${0.5 * dusk})`; g.fillRect(0, 0, W, H);       // la nuit tombe
-    g.translate(W / 2, ty - 0.5 * k); g.scale(zoom, zoom); g.translate(-W / 2, -(ty - 0.5 * k)); strings(t, Lb); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    cam(); strings(t, Lb); g.setTransform(dpr, 0, 0, dpr, 0, 0);
     g.drawImage(bgVig, 0, 0, W, H);
     const fade = 1 - smooth(clamp(t / FADE_IN, 0, 1)); if (fade > 0) { g.fillStyle = `rgba(8,2,5,${fade})`; g.fillRect(0, 0, W, H); }
-    if (t > IRIS[0]) {                                                          // le site se referme : iris
-      const u = smooth(clamp((t - IRIS[0]) / (IRIS[1] - IRIS[0]), 0, 1)), rad = Math.hypot(W, H) * 0.62 * (1 - u);
-      g.fillStyle = '#080204'; g.beginPath(); g.rect(0, 0, W, H); if (rad > 0.5) g.arc(W / 2, ty - 0.45 * k, rad, 0, TAU, true); g.fill('evenodd');
+    if (t > IRIS[0]) {                                                          // le site se referme : l'ouverture devient le logo du club
+      const u = ui, rad = lerp(Math.hypot(W, H) * 0.62, Rl, u), a = smooth(clamp((t - CROSS[0]) / (CROSS[1] - CROSS[0]), 0, 1)), v = clamp((t - LOGO_OUT[0]) / (LOGO_OUT[1] - LOGO_OUT[0]), 0, 1);
+      g.fillStyle = '#080204'; g.beginPath(); g.rect(0, 0, W, H); g.arc(W / 2, Cy, rad, 0, TAU, true); g.fill('evenodd');
+      if (u > 0.02 && v < 1) { g.save(); g.globalCompositeOperation = 'lighter'; g.strokeStyle = `rgba(255,190,198,${0.55 * Math.min(u * 1.5, 1) * (1 - v)})`; g.lineWidth = Math.max(2, 0.035 * Rl); g.beginPath(); g.arc(W / 2, Cy, rad, 0, TAU); g.stroke(); g.restore(); }
+      if (a > 0 && v < 1) {
+        const sc = 1 - v * v * (3 - 2 * v) * 1.0, rr = Rl * Math.max(sc, 0.001), rot = 0.9 * (1 - a) + v * TAU * 1.2, al = a * (1 - v * v);
+        g.fillStyle = `rgba(8,2,4,${a})`; g.beginPath(); g.arc(W / 2, Cy, Rl + 1, 0, TAU); g.fill();               // le décor s'efface derrière le logo
+        g.save(); g.globalCompositeOperation = 'lighter'; const gl = g.createRadialGradient(W / 2, Cy, rr * 0.8, W / 2, Cy, rr * 2.2); gl.addColorStop(0, `rgba(255,110,125,${0.35 * al})`); gl.addColorStop(1, 'rgba(255,110,125,0)'); g.fillStyle = gl; g.beginPath(); g.arc(W / 2, Cy, rr * 2.2, 0, TAU); g.fill(); g.restore();
+        if (logoImg && logoImg.complete && logoImg.naturalWidth > 0) {
+          g.save(); g.globalAlpha = al; g.beginPath(); g.arc(W / 2, Cy, rr, 0, TAU); g.clip(); g.translate(W / 2, Cy); g.rotate(rot); g.drawImage(logoImg, -rr, -rr, 2 * rr, 2 * rr); g.restore();
+          g.save(); g.globalAlpha = al; g.strokeStyle = 'rgba(232,222,222,.92)'; g.lineWidth = Math.max(2, rr * 0.07); g.beginPath(); g.arc(W / 2, Cy, rr * 0.965, 0, TAU); g.stroke();
+          g.strokeStyle = 'rgba(255,190,198,.8)'; g.lineWidth = Math.max(1.5, rr * 0.09); g.lineCap = 'round'; g.beginPath(); g.arc(W / 2, Cy, rr * 0.9, -0.95, 0.95); g.stroke(); g.restore();
+        }
+      }
     }
   }
 
@@ -371,26 +387,30 @@
 
   /* ---------- Boucle ---------- */
   let raf = 0, t0 = null, running = false, mode = 'quit', playId = 0;
+  function setStage(t) {                                                         // texte, position du texte, boutons
+    box.classList.toggle('texting', t >= TEXT_AT);
+    $card.style.setProperty('--ty', (t >= LOGO_OUT[0] + 0.45 ? tyFinal : tyInit) + 'px');
+  }
   function showCard() {
-    running = false; cancelAnimationFrame(raf); box.classList.add('closed');
-    $msg.textContent = mode === 'logout' ? 'Vous êtes déconnecté. Merci de votre visite !' : 'Merci de votre visite !';
+    running = false; cancelAnimationFrame(raf); box.classList.add('closed', 'texting'); $card.style.setProperty('--ty', tyFinal + 'px');
     g.setTransform(dpr, 0, 0, dpr, 0, 0); g.fillStyle = '#080204'; g.fillRect(0, 0, W, H); $back.focus({ preventScroll: true });
   }
   function frame(now) {
     if (!running) return; if (t0 === null) t0 = now;
     const t = (now - t0) / 1000; if (t >= END) return showCard();
-    draw(t); lastT = t; raf = requestAnimationFrame(frame);
+    draw(t); setStage(t); lastT = t; raf = requestAnimationFrame(frame);
   }
   function stopAudio() { if (mix && ac) { try { mix.gain.cancelScheduledValues(ac.currentTime); mix.gain.setTargetAtTime(0, ac.currentTime, 0.12); } catch (e) {} } }
   function play(m) {
-    mode = m || 'quit'; box.hidden = false; box.classList.remove('closed'); $hint.hidden = true; root.classList.add('outro-on');
+    mode = m || 'quit'; box.hidden = false; box.classList.remove('closed', 'texting'); $hint.hidden = true; root.classList.add('outro-on');
+    $msg.textContent = mode === 'logout' ? 'Vous êtes déconnecté. Merci de votre visite, à bientôt !' : 'Merci de votre visite, à bientôt !';
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) { layout(); showCard(); return; }       // sans animation : on affiche directement le message
     layout(); initAudio(); sndLabel(); if (ac && ac.state !== 'running') ac.resume().catch(() => {});
     const id = ++playId, began = performance.now(); t0 = null; running = true; $skip.focus({ preventScroll: true }); raf = requestAnimationFrame(frame);
     if (ac) decodeAll().then(() => { if (running && id === playId) startAudio((performance.now() - began) / 1000); });
   }
   function skip() { if (!running) return; playId++; stopAudio(); showCard(); }
-  function back() { playId++; stopAudio(); running = false; cancelAnimationFrame(raf); box.hidden = true; box.classList.remove('closed'); root.classList.remove('outro-on'); window.scrollTo(0, 0); }
+  function back() { playId++; stopAudio(); running = false; cancelAnimationFrame(raf); box.hidden = true; box.classList.remove('closed', 'texting'); root.classList.remove('outro-on'); window.scrollTo(0, 0); }
   $skip.addEventListener('click', skip); $back.addEventListener('click', back);
   $close.addEventListener('click', () => { window.close(); setTimeout(() => { $hint.hidden = false; }, 200); });   // ne fonctionne que si le navigateur l'autorise
   addEventListener('keydown', (e) => { if (!box.hidden && running && (e.key === 'Escape' || e.key === 'Enter')) skip(); else if (!box.hidden && !running && e.key === 'Escape') back(); });
@@ -404,5 +424,5 @@
     const bar = SIX * 8 * sr, par = []; for (let m = 0; m < 9; m++) { let q = 0, n = 0; for (let i = Math.round(0.35 * sr + m * bar); i < 0.35 * sr + (m + 1) * bar && i < d.length; i++) { q += d[i] * d[i]; n++; } par.push(n ? +(10 * Math.log10(q / n + 1e-12)).toFixed(1) : null); }
     return { bpm: BPM, rmsDb: +(20 * Math.log10(Math.sqrt(sum / d.length))).toFixed(1), crete: +pk.toFixed(2), nan, dbParMesure: par };
   }
-  window.CCPOutro = { play, skip, back, renderTest, seek: (t) => { running = false; cancelAnimationFrame(raf); box.hidden = false; layout(); draw(t); } };
+  window.CCPOutro = { play, skip, back, renderTest, seek: (t) => { running = false; cancelAnimationFrame(raf); box.hidden = false; box.classList.remove('closed'); layout(); draw(t); setStage(t); } };
 })();
