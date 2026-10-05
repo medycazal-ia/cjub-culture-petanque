@@ -46,7 +46,7 @@
     const portrait = W < H;
     s = Math.min(W / (portrait ? 560 : 760), H / 560); k = 100 * s;
     hy = H * (portrait ? 0.47 : 0.5); gy = H * (portrait ? 0.74 : 0.78);
-    r = 0.13 * k; rj = 0.5 * r; px = W * 0.2; A0 = W * 0.58; J0 = A0 + 3.6 * r;
+    r = 0.1 * k; rj = 0.5 * r; px = W * 0.2; A0 = W * 0.58; J0 = A0 + 3.6 * r;
     sx = W * 0.72; SR = clamp(W * (portrait ? 0.1 : 0.06), 34, 110);
     vA = 0.55 * W; tauC = ((J0 - A0) - (r + rj)) / vA;
     $title.style.setProperty('--ity', (portrait ? 13 : 11) + '%');
@@ -285,7 +285,7 @@
     try {
       ac = new AC(); const comp = ac.createDynamicsCompressor(); master = ac.createGain(); master.gain.value = 0.9; master.connect(comp); comp.connect(ac.destination);
       noise = ac.createBuffer(1, ac.sampleRate * 2, ac.sampleRate); const d = noise.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
-      ac.onstatechange = sndLabel;
+      ac.onstatechange = sndLabel; loadSamples();
     } catch (e) { ac = null; }
   }
   const canPlay = () => ac && ac.state === 'running' && !muted;
@@ -298,23 +298,43 @@
     const o = ac.createOscillator(); o.type = type; o.frequency.setValueAtTime(f0, t); if (f1) o.frequency.exponentialRampToValueAtTime(f1, t + decay * 0.6);
     const gn = ac.createGain(); env(gn, t, peak, decay); o.connect(gn); gn.connect(master); o.start(t); o.stop(t + decay + 0.05);
   }
-  const sfx = {
-    whoosh() { const t = ac.currentTime, src = ac.createBufferSource(); src.buffer = noise; const f = ac.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = 1.2;
-      f.frequency.setValueAtTime(400, t); f.frequency.exponentialRampToValueAtTime(2400, t + 0.3); const gn = ac.createGain();
-      gn.gain.setValueAtTime(0.0001, t); gn.gain.exponentialRampToValueAtTime(0.16, t + 0.14); gn.gain.exponentialRampToValueAtTime(0.0001, t + 0.42);
-      src.connect(f); f.connect(gn); gn.connect(master); src.start(t, 0.3); src.stop(t + 0.5); },
-    clack(vol = 1, pitch = 1) { const t = ac.currentTime;                                    // choc métal contre métal
-      noiseBurst(t, 'highpass', 1800, 0.7, 0.7 * vol, 0.07);
-      [[1650, 0.5, 0.34], [2480, 0.42, 0.26], [3710, 0.3, 0.2], [5120, 0.2, 0.14], [7300, 0.12, 0.09]].forEach(([f, a, d]) => tone(t, 'sine', f * pitch * (1 + Math.random() * 0.012), 0, a * vol, d));
-      tone(t, 'sine', 190 * pitch, 95 * pitch, 0.55 * vol, 0.13); },
-    tick() { const t = ac.currentTime; noiseBurst(t, 'bandpass', 2300, 4, 0.32, 0.05); tone(t, 'triangle', 1250, 0, 0.16, 0.07); tone(t, 'sine', 3100, 0, 0.08, 0.05); },
-    roll(dur) { const t = ac.currentTime, src = ac.createBufferSource(); src.buffer = noise; src.loop = true; const f = ac.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 1300; f.Q.value = 0.7;
-      const am = ac.createGain(); am.gain.value = 0.5; const lfo = ac.createOscillator(); lfo.frequency.value = 24; const lg = ac.createGain(); lg.gain.value = 0.45; lfo.connect(lg); lg.connect(am.gain);
-      const gn = ac.createGain(); gn.gain.setValueAtTime(0.0001, t); gn.gain.linearRampToValueAtTime(0.07, t + 0.06); gn.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-      src.connect(f); f.connect(am); am.connect(gn); gn.connect(master); src.start(t); lfo.start(t); src.stop(t + dur + 0.05); lfo.stop(t + dur + 0.05); }
+  // Vrais enregistrements facultatifs : public/sounds/sons.json associe un nom à un fichier audio.
+  let samples = {};
+  function loadSamples() {
+    if (!ac || loadSamples.done) return; loadSamples.done = true;
+    fetch('sounds/sons.json').then(res => res.ok ? res.json() : {}).then(map => Promise.all(['lancer', 'clac', 'cochonnet', 'rebond', 'roulement'].filter(n => map[n]).map(n =>
+      fetch('sounds/' + map[n]).then(res => res.arrayBuffer()).then(buf => new Promise((ok, ko) => ac.decodeAudioData(buf, ok, ko))).then(buf => { samples[n] = buf; }).catch(() => {})))).catch(() => {});
+  }
+  function sample(name, vol, rate) {
+    const buf = samples[name]; if (!buf) return false;
+    const src = ac.createBufferSource(); src.buffer = buf; src.playbackRate.value = (rate || 1) * (0.97 + Math.random() * 0.06);
+    const gn = ac.createGain(); gn.gain.value = vol == null ? 1 : vol; src.connect(gn); gn.connect(master); src.start(); return true;
+  }
+  const gravel = () => { // crépitement de gravier : petits chocs aléatoires de moins en moins fréquents
+    const n = Math.floor(ac.sampleRate * 1.6), b = ac.createBuffer(1, n, ac.sampleRate), d = b.getChannelData(0);
+    for (let i = 0; i < n; i++) { const x = i / n; if (Math.random() < 0.0022 * (1 - x) + 0.0004) { const a = (0.2 + Math.random() * 0.8) * (1 - x * 0.8); for (let j = 0; j < 6 && i + j < n; j++) d[i + j] += a * (Math.random() * 2 - 1) * Math.exp(-j / 2); } }
+    return b;
   };
-  const cues = [[TR, () => sfx.whoosh()], [TI, () => sfx.clack(1, 1)], [TI + tauC, () => sfx.tick()], [TI + 0.1, () => sfx.roll(1.3)],
-    [TI + 0.14, () => sfx.clack(0.32, 0.8)], [TI + 0.34, () => sfx.clack(0.16, 0.75)], [TI + 0.46, () => sfx.clack(0.08, 0.7)]];
+  const sfx = {
+    whoosh() { const t = ac.currentTime, src = ac.createBufferSource(); src.buffer = noise; const f = ac.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = 1.0;
+      f.frequency.setValueAtTime(350, t); f.frequency.exponentialRampToValueAtTime(1900, t + 0.3); const gn = ac.createGain();
+      gn.gain.setValueAtTime(0.0001, t); gn.gain.exponentialRampToValueAtTime(0.1, t + 0.14); gn.gain.exponentialRampToValueAtTime(0.0001, t + 0.4);
+      src.connect(f); f.connect(gn); gn.connect(master); src.start(t, 0.3); src.stop(t + 0.5); },
+    // Choc sec de deux boules d'acier plein : un claquement bref et brillant, des résonances qui s'éteignent en quelques dizaines de ms.
+    clack(vol = 1, pitch = 1) { const t = ac.currentTime; vol *= 0.5;
+      noiseBurst(t, 'highpass', 2600, 0.7, 0.7 * vol, 0.024);
+      noiseBurst(t, 'bandpass', 4200, 1.2, 0.5 * vol, 0.05);
+      [[2300, 0.36, 0.06], [3100, 0.34, 0.055], [4700, 0.26, 0.045], [6900, 0.12, 0.03]].forEach(([f, a, d]) => tone(t, 'sine', f * pitch * (1 + (Math.random() - 0.5) * 0.02), 0, a * vol, d));
+      tone(t, 'sine', 900 * pitch, 600 * pitch, 0.34 * vol, 0.04);
+      tone(t, 'sine', 140 * pitch, 85 * pitch, 0.2 * vol, 0.08); },
+    tick() { const t = ac.currentTime; noiseBurst(t, 'bandpass', 2000, 3, 0.3, 0.03); tone(t, 'triangle', 1100, 0, 0.14, 0.04); tone(t, 'sine', 2600, 0, 0.06, 0.03); },
+    roll(dur) { const t = ac.currentTime, src = ac.createBufferSource(); src.buffer = gravel(); const f = ac.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 2200; f.Q.value = 0.6;
+      const gn = ac.createGain(); gn.gain.setValueAtTime(0.0001, t); gn.gain.linearRampToValueAtTime(0.5, t + 0.05); gn.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      src.connect(f); f.connect(gn); gn.connect(master); src.start(t); src.stop(t + dur + 0.1); }
+  };
+  const cues = [[TR, () => sample('lancer', 0.8) || sfx.whoosh()], [TI, () => sample('clac', 1) || sfx.clack(1, 1)], [TI + tauC, () => sample('cochonnet', 0.8) || sfx.tick()],
+    [TI + 0.1, () => sample('roulement', 0.7) || sfx.roll(1.3)], [TI + 0.14, () => sample('rebond', 0.5) || sample('clac', 0.3, 0.9) || sfx.clack(0.3, 0.85)],
+    [TI + 0.34, () => sample('rebond', 0.3) || sample('clac', 0.15, 0.85) || sfx.clack(0.16, 0.8)], [TI + 0.46, () => sample('rebond', 0.2) || sample('clac', 0.08, 0.8) || sfx.clack(0.08, 0.75)]];
   let fired = [];
   function sndLabel() {
     if (!ac) { $snd.hidden = true; return; }
@@ -367,7 +387,16 @@
   addEventListener('keydown', (e) => { if (running && (e.key === 'Escape' || e.key === 'Enter')) skip(); });
   addEventListener('resize', () => { if (running) { layout(); } });
   document.addEventListener('click', (e) => { if (e.target.closest && e.target.closest('#replay-intro')) { e.preventDefault(); play(); } });
-  window.CCPIntro = { play, skip, seek: (t) => { running = false; cancelAnimationFrame(raf); layout(); draw(t); $title.classList.toggle('show', t >= TITLE_AT && t < OUT_AT); } };   // seek : pour les tests visuels
+  async function renderTest(name) {   // mesure objective d'un son (rendu hors ligne), pour les tests
+    const sr = 44100, oc = new OfflineAudioContext(1, sr, sr), saved = [ac, master, noise];
+    ac = oc; master = oc.createGain(); master.connect(oc.destination); noise = oc.createBuffer(1, sr * 2, sr); const nd = noise.getChannelData(0); for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+    sfx[name](1, 1); [ac, master, noise] = saved; const d = (await oc.startRendering()).getChannelData(0);
+    let pk = 0, pi = 0; for (let i = 0; i < d.length; i++) if (Math.abs(d[i]) > pk) { pk = Math.abs(d[i]); pi = i; }
+    const win = Math.round(sr * 0.002); let last = 0; for (let i = 0; i + win < d.length; i += win) { let m = 0; for (let j = 0; j < win; j++) m = Math.max(m, Math.abs(d[i + j])); if (m > pk * 0.01) last = i / sr; }
+    const N = 2048, seg = d.slice(pi, pi + N); let num = 0, den = 0; for (let f = 1; f < N / 2; f += 2) { let re = 0, im = 0; for (let n = 0; n < N; n++) { const a = -TAU * f * n / N; re += seg[n] * Math.cos(a); im += seg[n] * Math.sin(a); } const mg = Math.hypot(re, im); num += mg * f * sr / N; den += mg; }
+    return { pic: +pk.toFixed(2), dureeMs: Math.round(last * 1000), centroideHz: Math.round(num / den) };
+  }
+  window.CCPIntro = { renderTest, play, skip, seek: (t) => { running = false; cancelAnimationFrame(raf); layout(); draw(t); $title.classList.toggle('show', t >= TITLE_AT && t < OUT_AT); } };   // seek : pour les tests visuels
 
   if (root.classList.contains('intro-on')) play();
 })();
