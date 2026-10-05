@@ -1,6 +1,6 @@
 # Versions du site
 
-Chaque version est une **étiquette (tag) git** posée sur la branche `main`. Elle permet de revenir exactement à cet état.
+Chaque version est conservée sous un nom, pour pouvoir revenir exactement à cet état. La version **MVP** est enregistrée dans la **branche `MVP`**, figée sur le commit de cette version : n'y ajoutez rien. Le développement continue sur `main`.
 
 | Version | Date | Contenu |
 |---|---|---|
@@ -21,13 +21,16 @@ Les versions suivantes s'appelleront **v1**, **v2**, **v3**, etc.
 ## Revenir à une version
 
 ```bash
-git fetch --tags
+git fetch
 git checkout MVP          # ou v1, v2…
 ```
 
 ## Créer la version suivante
 
+Depuis `main`, à jour :
+
 ```bash
-git tag v1
-git push origin v1
+git push origin main:v1
 ```
+
+(une branche `v1` figée sur l'état actuel). Sur GitHub, vous pouvez aussi créer une *Release* avec l'étiquette `v1` : menu **Releases → Draft a new release**.
