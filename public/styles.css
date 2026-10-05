@@ -96,3 +96,9 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 .mod .thumb{width:180px;max-width:100%;flex:none}
 .mod .thumb img,.mod .thumb video{width:100%;display:block}
 .mod .info{flex:1;min-width:200px}
+
+/* Inscription aux événements */
+#reg-box{position:fixed;inset:0;z-index:98;background:rgba(0,0,0,.5);display:flex;align-items:flex-start;justify-content:center;padding:1rem;overflow-y:auto}
+#reg-box[hidden]{display:none!important}
+#reg-box form{width:100%;margin:auto}
+.event .row .btn.small{align-self:center}

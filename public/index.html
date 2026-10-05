@@ -124,6 +124,20 @@
   <p><a data-href="mailto:email" data-s="email"></a> · <a data-href="tel:phone" data-s="phone"></a> · <a data-href="facebook" target="_blank" rel="noopener">Facebook</a> · <a data-href="whatsapp" target="_blank" rel="noopener">WhatsApp</a></p>
 </footer>
 <div id="lightbox" hidden><button id="lb-close" class="btn small" aria-label="Fermer">✕</button><div id="lb-body"></div></div>
+<div id="reg-box" hidden><form id="reg-form" class="panel narrow-form">
+  <h3 id="reg-title">Inscription</h3>
+  <label>Je m'inscris en tant que<select id="reg-kind" name="status"><option value="member">Membre du club</option><option value="guest">Invité (non-membre)</option></select></label>
+  <label>Nom complet<input id="reg-name" name="name" required maxlength="100"></label>
+  <label>Email<input id="reg-email" name="email" type="email" required maxlength="150"></label>
+  <label>Téléphone<input id="reg-phone" name="phone" type="tel" maxlength="30" placeholder="+596…"></label>
+  <label>Équipe ou coéquipier (facultatif)<input id="reg-team" name="team" maxlength="100"></label>
+  <div id="reg-guest" hidden>
+    <label>Catégorie<select id="reg-category" name="category"><option>Compétiteur</option><option>Joueur loisir</option><option>Accompagnant / spectateur</option></select></label>
+    <label>Club d'origine (facultatif)<input id="reg-club" name="club" maxlength="100"></label>
+    <p class="note">Les invités sont enregistrés dans le dossier « Invités » du club et pourront être contactés pour de futurs événements.</p>
+  </div>
+  <button class="btn primary">Confirmer</button> <button type="button" class="btn" id="reg-cancel">Annuler</button>
+</form></div>
 <div id="toast" role="status"></div>
 <script src="app.js"></script>
 </body>

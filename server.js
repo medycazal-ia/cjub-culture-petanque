@@ -35,7 +35,7 @@ const DEFAULTS = {
     { id: 2, name: 'Boules de pétanque', description: 'Set de 3 boules', price: 120 },
     { id: 3, name: 'Casquette du club', description: 'Casquette brodée', price: 15 }
   ],
-  members: [], registrations: [], orders: [], gallery: [],
+  members: [], guests: [], registrations: [], orders: [], gallery: [],
   comments: [
     { id: 2, author: 'Pierre Leclerc', text: 'Excellente organisation, merci !', eventId: 1, status: 'approved', date: '2026-10-01' }
   ]
@@ -43,7 +43,7 @@ const DEFAULTS = {
 
 let db;
 function load() {
-  try { db = JSON.parse(fs.readFileSync(DB_FILE, 'utf8')); db.gallery = db.gallery || []; }
+  try { db = JSON.parse(fs.readFileSync(DB_FILE, 'utf8')); db.gallery = db.gallery || []; db.guests = db.guests || []; }
   catch { db = JSON.parse(JSON.stringify(DEFAULTS)); save(); }
 }
 function save() {
@@ -117,17 +117,33 @@ app.post('/api/members', (req, res) => {
   res.status(201).json({ message: 'Inscription enregistrée. Bienvenue au club !' });
 });
 
+const GUEST_CATEGORIES = ['Compétiteur', 'Joueur loisir', 'Accompagnant / spectateur'];
+// Ouvert aux membres et aux non-membres. Les non-membres sont enregistrés dans le dossier « Invités ».
 app.post('/api/events/:id/register', (req, res) => {
   const ev = db.events.find(e => e.id === +req.params.id);
   if (!ev) return res.status(404).json({ error: 'Événement introuvable.' });
-  if (ev.status !== 'Ouvert') return res.status(400).json({ error: 'Les inscriptions sont closes.' });
+  if (ev.status !== 'Ouvert' || ev.date < today()) return res.status(400).json({ error: 'Les inscriptions sont closes.' });
   const name = str(req.body.name, 100), email = str(req.body.email, 150).toLowerCase();
   if (!name || !isEmail(email)) return res.status(400).json({ error: 'Nom et email valides requis.' });
+  const member = db.members.find(m => m.email === email);
+  if (req.body.status === 'member' && !member)
+    return res.status(409).json({ error: 'Cet email ne correspond à aucun membre. Choisissez « Invité » pour vous inscrire sans être membre, ou inscrivez-vous au club.' });
   if (db.registrations.some(r => r.eventId === ev.id && r.email === email))
     return res.status(409).json({ error: 'Vous êtes déjà inscrit à cet événement.' });
-  db.registrations.push({ id: nextId(), eventId: ev.id, name, email, date: today() });
-  save();
-  res.status(201).json({ message: 'Inscription confirmée à « ' + ev.title + ' ».' });
+  const kind = member ? 'member' : 'guest';
+  const reg = { id: nextId(), eventId: ev.id, name, email, phone: str(req.body.phone, 30), team: str(req.body.team, 100), kind, date: today() };
+  if (kind === 'guest') {
+    const category = GUEST_CATEGORIES.includes(req.body.category) ? req.body.category : 'Joueur loisir';
+    const club = str(req.body.club, 100);
+    let g = db.guests.find(x => x.email === email);
+    if (!g) db.guests.push(g = { id: nextId(), email, events: [], firstDate: today() });
+    Object.assign(g, { name, phone: reg.phone, category, club });
+    if (!g.events.includes(ev.id)) g.events.push(ev.id);
+    reg.category = category;
+  }
+  db.registrations.push(reg); save();
+  res.status(201).json({ message: kind === 'member' ? 'Inscription confirmée à « ' + ev.title + ' ».'
+    : 'Inscription confirmée à « ' + ev.title + ' » en tant qu\'invité. Vous serez prévenu des prochains événements.' });
 });
 
 app.post('/api/comments', (req, res) => {
@@ -228,7 +244,7 @@ app.delete('/api/gallery/:id', admin, (req, res) => {
 /* ---------- API admin ---------- */
 app.get('/api/admin/overview', admin, (_req, res) => res.json({
   members: db.members, registrations: db.registrations, orders: db.orders,
-  comments: db.comments, gallery: db.gallery
+  comments: db.comments, gallery: db.gallery, guests: db.guests
 }));
 
 const del = (key) => (req, res) => {
@@ -258,6 +274,7 @@ app.post('/api/products', admin, (req, res) => {
 });
 app.delete('/api/products/:id', admin, del('products'));
 app.delete('/api/members/:id', admin, del('members'));
+app.delete('/api/guests/:id', admin, del('guests'));
 app.patch('/api/admin/comments/:id', admin, (req, res) => {
   const c = db.comments.find(x => x.id === +req.params.id);
   if (!c) return res.status(404).json({ error: 'Introuvable.' });

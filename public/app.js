@@ -28,8 +28,11 @@ async function api(path, method = 'GET', body) {
 const act = async (fn, ok) => { try { const r = await fn(); if (ok) toast(typeof ok === 'function' ? ok(r) : ok); return r; } catch (e) { toast(e.message, true); } };
 
 /* ---------- Navigation ---------- */
+let pendingReg = null;
 function route() {
-  const id = (location.hash || '#home').slice(1);
+  let id = (location.hash || '#home').slice(1);
+  const m = id.match(/^register-(\d+)$/);
+  if (m) { pendingReg = m[1]; id = 'events'; if (state.events.length) { openReg(pendingReg); pendingReg = null; } }
   const page = document.getElementById(id) && $('#' + id).classList.contains('page') ? id : 'home';
   document.querySelectorAll('.page').forEach(p => p.classList.toggle('active', p.id === page));
   document.querySelectorAll('nav a').forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + page));
@@ -46,7 +49,8 @@ async function loadAll() {
   const [events, products, comments, settings, count, gallery] = await Promise.all([
     api('/events'), api('/products'), api('/comments'), api('/settings'), api('/members/count'), api('/gallery')]);
   Object.assign(state, { events, products, comments, settings, gallery });
-  renderEvents(); renderGallery(); renderProducts(); renderCart(); renderSettings();
+  renderEvents(); renderGallery();
+  if (pendingReg) { openReg(pendingReg); pendingReg = null; } renderProducts(); renderCart(); renderSettings();
   $('#member-count').textContent = count.count ? count.count + ' membre(s) déjà inscrit(s).' : '';
 }
 function eventCard(e, withActions) {
@@ -54,11 +58,11 @@ function eventCard(e, withActions) {
     <h3>${esc(e.title)}</h3>${e.location ? `<p><strong>Lieu :</strong> ${esc(e.location)}</p>` : ''}
     <p>${esc(e.description)}</p>
     <div class="row"><span class="badge ${e.status === 'Ouvert' ? '' : 'warn'}">${esc(e.status)}</span>
-    ${withActions && e.status === 'Ouvert' ? `<button class="btn primary small" data-reg="${e.id}">S'inscrire</button>` : ''}</div></article>`;
+    ${withActions && e.status === 'Ouvert' ? `<button class="btn primary small" data-reg="${e.id}">S'inscrire</button> <button class="btn small" data-link="${e.id}">Copier le lien d'inscription</button>` : ''}</div></article>`;
 }
 function renderEvents() {
   const upcoming = state.events.filter(e => !isPast(e));
-  $('#home-events').innerHTML = upcoming.slice(0, 3).map(e => eventCard(e, false)).join('') || '<p class="note">Aucun événement pour le moment.</p>';
+  $('#home-events').innerHTML = upcoming.slice(0, 3).map(e => eventCard(e, true)).join('') || '<p class="note">Aucun événement pour le moment.</p>';
   $('#events-list').innerHTML = upcoming.map(e => eventCard(e, true)).join('') || '<p class="note">Aucun événement à venir. Retrouvez les anciens dans la <a href="#gallery">galerie</a>.</p>';
   $('#comments-list').innerHTML = state.comments.map(c => {
     const ev = state.events.find(e => e.id === c.eventId);
@@ -67,11 +71,31 @@ function renderEvents() {
   $('#comment-form [name=eventId]').innerHTML = '<option value="">— Général —</option>' +
     state.events.map(e => `<option value="${e.id}">${esc(e.title)}</option>`).join('');
 }
-$('#events-list').onclick = (ev) => {
-  const id = ev.target.dataset.reg; if (!id) return;
-  const name = prompt('Votre nom complet :'); if (!name) return;
-  const email = prompt('Votre email :'); if (!email) return;
-  act(() => api(`/events/${id}/register`, 'POST', { name, email }), r => r.message);
+/* Inscription (membres et invités) */
+let regId = null;
+const regLink = (id) => location.origin + location.pathname + '#register-' + id;
+function openReg(id) {
+  const ev = state.events.find(e => e.id === +id);
+  if (!ev || ev.status !== 'Ouvert' || isPast(ev)) { toast('Les inscriptions à cet événement sont closes.', true); return; }
+  regId = ev.id; $('#reg-title').textContent = 'Inscription : ' + ev.title;
+  $('#reg-box').hidden = false; $('#reg-name').focus();
+}
+async function copyLink(id) {
+  const url = regLink(id);
+  try { await navigator.clipboard.writeText(url); toast('Lien copié : ' + url); }
+  catch { toast('Lien d\'inscription : ' + url); }
+}
+const onEventClick = (ev) => {
+  if (ev.target.dataset.reg) openReg(ev.target.dataset.reg);
+  if (ev.target.dataset.link) copyLink(ev.target.dataset.link);
+};
+$('#events-list').onclick = $('#home-events').onclick = onEventClick;
+$('#reg-kind').onchange = () => { $('#reg-guest').hidden = $('#reg-kind').value !== 'guest'; };
+$('#reg-cancel').onclick = () => { $('#reg-box').hidden = true; };
+$('#reg-form').onsubmit = async (e) => {
+  e.preventDefault();
+  const r = await act(() => api(`/events/${regId}/register`, 'POST', Object.fromEntries(new FormData(e.target))), r => r.message);
+  if (r) { e.target.reset(); $('#reg-guest').hidden = true; $('#reg-box').hidden = true; }
 };
 $('#comment-form').onsubmit = async (e) => {
   e.preventDefault(); const f = e.target;
@@ -136,7 +160,7 @@ function renderSettings() {
 }
 
 /* ---------- Administration ---------- */
-const TABS = { events: 'Événements', gallery: 'Galerie', products: 'Produits', registrations: 'Inscriptions', members: 'Membres', orders: 'Commandes', comments: 'Commentaires', settings: 'Paramètres' };
+const TABS = { events: 'Événements', gallery: 'Galerie', products: 'Produits', registrations: 'Inscriptions', members: 'Membres', guests: 'Invités', orders: 'Commandes', comments: 'Commentaires', settings: 'Paramètres' };
 function logout() { token = ''; sessionStorage.removeItem('adminToken'); adminData = null; showAdmin(); }
 $('#logout').onclick = logout;
 $('#login-form').onsubmit = async (e) => {
@@ -166,8 +190,11 @@ function renderAdmin() {
     <label>Nom<input name="name" required></label><label>Description<textarea name="description" rows="2"></textarea></label>
     <label>Prix (€)<input name="price" type="number" min="0" step="0.01" required></label><button class="btn primary">Ajouter</button></form>` +
     tbl(['Nom', 'Prix', ''], state.products.map(p => `<tr><td>${esc(p.name)}</td><td>${eur(p.price)}</td><td>${del('products', p.id)}</td></tr>`));
-  if (adminTab === 'registrations') h = tbl(['Événement', 'Nom', 'Email', 'Date'], d.registrations.map(r => {
-    const e = state.events.find(x => x.id === r.eventId); return `<tr><td>${esc(e ? e.title : '—')}</td><td>${esc(r.name)}</td><td>${esc(r.email)}</td><td>${esc(r.date)}</td></tr>`; }));
+  if (adminTab === 'registrations') h = tbl(['Événement', 'Nom', 'Statut', 'Email', 'Téléphone', 'Équipe', 'Date'], d.registrations.map(r => {
+    const e = state.events.find(x => x.id === r.eventId);
+    return `<tr><td>${esc(e ? e.title : '—')}</td><td>${esc(r.name)}</td><td><span class="badge ${r.kind === 'guest' ? 'warn' : ''}">${r.kind === 'guest' ? 'Invité · ' + esc(r.category || '') : 'Membre'}</span></td><td>${esc(r.email)}</td><td>${esc(r.phone || '')}</td><td>${esc(r.team || '')}</td><td>${esc(r.date)}</td></tr>`; }));
+  if (adminTab === 'guests') h = '<p class="note">Personnes inscrites à un événement sans être membres. Gardez ce dossier pour les inviter à de futurs événements.</p>' +
+    tbl(['Nom', 'Catégorie', 'Club', 'Email', 'Téléphone', 'Événements', ''], d.guests.map(g => `<tr><td>${esc(g.name)}</td><td>${esc(g.category)}</td><td>${esc(g.club || '')}</td><td>${esc(g.email)}</td><td>${esc(g.phone || '')}</td><td>${g.events.map(id => esc((state.events.find(e => e.id === id) || {}).title || '—')).join('<br>')}</td><td>${del('guests', g.id)}</td></tr>`));
   if (adminTab === 'members') h = tbl(['Nom', 'Email', 'Téléphone', 'Niveau', 'Inscrit le', ''], d.members.map(m =>
     `<tr><td>${esc(m.name)}</td><td>${esc(m.email)}</td><td>${esc(m.phone)}</td><td>${esc(m.level)}</td><td>${esc(m.joinDate)}</td><td>${del('members', m.id)}</td></tr>`));
   if (adminTab === 'orders') h = tbl(['N°', 'Client', 'Articles', 'Total', 'Statut'], d.orders.map(o =>
