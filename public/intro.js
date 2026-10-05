@@ -37,7 +37,7 @@
   const TI = TR + FLIGHT;                                                                        // instant du choc
 
   /* ---------- Mise en page ---------- */
-  let W, H, dpr, s, k, hy, gy, r, rj, px, A0, J0, sx, SR, vA, tauC, R0, PI_, bgSky, bgLand, bgVig, motes, sparks, puffs, lastDraw = -1;
+  let W, H, dpr, s, k, hy, gy, r, rs, rj, px, A0, J0, sx, SR, vA, tauC, R0, PI_, bgSky, bgLand, bgVig, motes, sparks, puffs, lastDraw = -1;
   const mk = () => { const c = document.createElement('canvas'); c.width = Math.round(W * dpr); c.height = Math.round(H * dpr); const x = c.getContext('2d'); x.scale(dpr, dpr); return [c, x]; };
 
   function layout() {
@@ -50,7 +50,9 @@
     sx = W * 0.72; SR = clamp(W * (portrait ? 0.1 : 0.06), 34, 110);
     vA = 0.55 * W; tauC = ((J0 - A0) - (r + rj)) / vA;
     $title.style.setProperty('--ity', (portrait ? 13 : 11) + '%');
-    R0 = held(pose(TR)); PI_ = { x: A0 - 1.75 * r, y: gy - r - 0.95 * r };
+    rs = Math.max(1.5 * r, 13);                                                   // rayon de la boule une fois devenue logo (lisible même sur petit écran)
+    const dc = r + rs;                                                             // distance entre centres au contact
+    R0 = held(pose(TR)); PI_ = { x: A0 - 0.878 * dc, y: gy - r - 0.479 * dc };
     buildBg(); buildFx();
   }
 
@@ -196,6 +198,32 @@
     sp.addColorStop(0, `rgba(255,236,236,${0.95 * L})`); sp.addColorStop(1, 'rgba(255,200,205,0)'); g.fillStyle = sp; g.beginPath(); g.arc(x, y, rad, 0, TAU); g.fill();
     g.strokeStyle = 'rgba(0,0,0,.55)'; g.lineWidth = 1; g.beginPath(); g.arc(x, y, rad, 0, TAU); g.stroke();
   }
+  const logoEl = document.querySelector('.map-logo');                               // le logo du club (déjà chargé dans la page)
+  const logoReady = () => logoEl && logoEl.complete && logoEl.naturalWidth > 0;
+  function drawLogoDisc(x, y, rad, spin, L) {                                       // médaille ronde du club, qui tourne, éclairée à contre-jour
+    g.save(); g.beginPath(); g.arc(x, y, rad, 0, TAU); g.clip(); g.translate(x, y); g.rotate(spin); g.drawImage(logoEl, -rad, -rad, 2 * rad, 2 * rad); g.restore();
+    let gr = g.createLinearGradient(x - rad, 0, x + rad, 0); gr.addColorStop(0, 'rgba(8,3,6,.42)'); gr.addColorStop(0.65, 'rgba(8,3,6,0)'); g.fillStyle = gr; g.beginPath(); g.arc(x, y, rad, 0, TAU); g.fill();
+    gr = g.createRadialGradient(x - rad * 0.2, y - rad * 0.15, rad * 0.3, x, y, rad); gr.addColorStop(0, 'rgba(8,3,6,0)'); gr.addColorStop(1, 'rgba(8,3,6,.5)'); g.fillStyle = gr; g.beginPath(); g.arc(x, y, rad, 0, TAU); g.fill();
+    g.strokeStyle = 'rgba(232,222,222,.92)'; g.lineWidth = Math.max(1.5, rad * 0.1); g.beginPath(); g.arc(x, y, rad * 0.95, 0, TAU); g.stroke();      // cerclage métallique : c'est toujours une boule
+    g.strokeStyle = `rgba(255,190,198,${0.9 * L})`; g.lineWidth = Math.max(1, rad * 0.14); g.lineCap = 'round'; g.beginPath(); g.arc(x, y, rad * 0.9, -0.95, 0.95); g.stroke();
+    const sp = g.createRadialGradient(x + rad * 0.62, y - rad * 0.05, 0, x + rad * 0.62, y - rad * 0.05, rad * 0.45); sp.addColorStop(0, `rgba(255,236,236,${0.9 * L})`); sp.addColorStop(1, 'rgba(255,200,205,0)');
+    g.fillStyle = sp; g.beginPath(); g.arc(x, y, rad, 0, TAU); g.fill(); g.strokeStyle = 'rgba(0,0,0,.55)'; g.lineWidth = 1; g.beginPath(); g.arc(x, y, rad, 0, TAU); g.stroke();
+  }
+  function drawShooter(S, L) {                                                      // boule de chrome -> logo du club, en plein vol
+    const m = logoReady() ? S.m : 0;
+    if (m < 0.999) { g.save(); g.globalAlpha = 1 - smooth(m); drawBoule(S.x, S.y, S.r, S.spin, 'shoot', L); g.restore(); }
+    if (m > 0.001) { g.save(); g.globalAlpha = smooth(m); drawLogoDisc(S.x, S.y, S.r, S.spin, L); g.restore(); }
+    if (m > 0.05 && m < 0.97) {                                                    // éclat de la transformation : halo, anneau et rayons
+      const q = (m - 0.05) / 0.92, a = Math.sin(Math.PI * q);
+      g.save(); g.globalCompositeOperation = 'lighter';
+      const gr = g.createRadialGradient(S.x, S.y, 0, S.x, S.y, S.r * 3.2); gr.addColorStop(0, `rgba(255,225,215,${0.7 * a * L})`); gr.addColorStop(0.4, `rgba(255,140,150,${0.3 * a * L})`); gr.addColorStop(1, 'rgba(255,120,130,0)');
+      g.fillStyle = gr; g.beginPath(); g.arc(S.x, S.y, S.r * 3.2, 0, TAU); g.fill();
+      g.strokeStyle = `rgba(255,205,210,${(1 - q) * 0.9 * L})`; g.lineWidth = Math.max(1.5, S.r * 0.12 * (1 - q)); g.beginPath(); g.arc(S.x, S.y, S.r * (1.2 + 1.8 * q), 0, TAU); g.stroke();
+      g.strokeStyle = `rgba(255,240,230,${a * 0.85 * L})`; g.lineWidth = Math.max(1, 1.4 * s); g.lineCap = 'round';
+      for (let i = 0; i < 8; i++) { const an = i * TAU / 8 + S.spin * 0.25, r1 = S.r * (1.3 + 0.5 * q), r2 = S.r * (1.7 + 1.6 * q); g.beginPath(); g.moveTo(S.x + Math.cos(an) * r1, S.y + Math.sin(an) * r1); g.lineTo(S.x + Math.cos(an) * r2, S.y + Math.sin(an) * r2); g.stroke(); }
+      g.restore();
+    }
+  }
   function ballShadow(x, y, rad, L, rx = 1) {                                      // y = centre ; ombre projetée sur le sol
     const h = Math.max(0, gy - rad - y), p = { x: x - SHX * (h + rad * 0.2), y: gy + SHY * h };
     g.save(); if (typeof g.filter === 'string') g.filter = `blur(${Math.max(1, rad * 0.18)}px)`;
@@ -206,14 +234,16 @@
 
   /* ---------- Trajectoires (fonctions pures du temps) ---------- */
   const arc = (u, a) => a * 4 * u * (1 - u);
+  const MORPH = [0.12, 0.62];                                                       // la boule se transforme en logo entre ces instants du vol (s)
   function posS(t, P) {
-    if (t < TR) { const b = held(P); return { ...b, spin: 0, held: true }; }
-    if (t < TI) { const u = (t - TR) / FLIGHT; return { x: lerp(R0.x, PI_.x, u), y: lerp(R0.y, PI_.y, u) - arc(u, 1.1 * k), spin: -(t - TR) * 13 }; }
-    const tau = t - TI; let h;
-    if (tau < 0.14) h = 0.95 * r * (1 - (tau / 0.14) ** 2);
-    else if (tau < 0.34) h = arc((tau - 0.14) / 0.2, 0.5 * r); else if (tau < 0.46) h = arc((tau - 0.34) / 0.12, 0.15 * r); else h = 0;
-    const xf = A0 - 0.2 * r;
-    return { x: PI_.x + (xf - PI_.x) * (1 - Math.exp(-5 * tau)), y: gy - r - h, spin: -(TR - TI) * 13 - tau * 5 * Math.exp(-3 * tau) };
+    if (t < TR) { const b = held(P); return { ...b, spin: 0, held: true, r, m: 0 }; }
+    const m = smooth(clamp((t - TR - MORPH[0]) / (MORPH[1] - MORPH[0]), 0, 1)), rr = r + (rs - r) * m + Math.sin(Math.PI * m) * 0.18 * r;
+    if (t < TI) { const u = (t - TR) / FLIGHT; return { x: lerp(R0.x, PI_.x, u), y: lerp(R0.y, PI_.y, u) - arc(u, 1.1 * k), spin: -(t - TR) * 13, r: rr, m }; }
+    const tau = t - TI, fall = (gy - rs) - PI_.y; let h;
+    if (tau < 0.14) h = fall * (1 - (tau / 0.14) ** 2);
+    else if (tau < 0.34) h = arc((tau - 0.14) / 0.2, 0.45 * r); else if (tau < 0.46) h = arc((tau - 0.34) / 0.12, 0.13 * r); else h = 0;
+    const trav = 0.05 * W + 0.878 * (r + rs), x = PI_.x + trav * (1 - Math.exp(-3.2 * tau));          // le logo continue de rouler, en roue
+    return { x, y: gy - rs - h, spin: -FLIGHT * 13 * Math.exp(-6 * tau) + (x - PI_.x) / rs, r: rs, m: 1 };
   }
   function posA(t) {
     if (t < TI) return { x: A0, y: gy - r, spin: 0 };
@@ -256,10 +286,10 @@
     g.strokeStyle = `rgba(255,205,198,${0.5 * L})`; g.lineWidth = Math.max(1, 0.012 * k); g.beginPath(); g.ellipse(px + 0.02 * k, gy + 0.012 * k, 0.5 * k, 0.085 * k, 0, 0, TAU); g.stroke();
     // ombres
     const S = posS(t, P), A = posA(t), J = posJ(t);
-    drawPlayerShadow(P, L); ballShadow(A.x, A.y, r, L); ballShadow(J.x, J.y, rj, L, 0.7); if (!S.held) ballShadow(S.x, S.y, r, L);
+    drawPlayerShadow(P, L); ballShadow(A.x, A.y, r, L); ballShadow(J.x, J.y, rj, L, 0.7); if (!S.held) ballShadow(S.x, S.y, S.r, L);
     // acteurs
     drawBoule(A.x, A.y, r, A.spin, 'adv', L); drawBoule(J.x, J.y, rj, J.spin, 'jack', L);
-    drawPlayer(P, L); drawBoule(S.x, S.y, r, S.spin, 'shoot', L);
+    drawPlayer(P, L); drawShooter(S, L);
     // effets du choc
     const fx = { x: A0 - 0.85 * r, y: gy - 1.5 * r };
     if (ti > 0 && ti < 1.4) {
