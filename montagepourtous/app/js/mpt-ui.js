@@ -48,8 +48,8 @@ li label{display:flex;gap:.45rem;align-items:center;cursor:pointer;min-width:0}\
 :host([data-theme=classique]) button.plein{background:linear-gradient(var(--a2),var(--a));color:#fff}\
 :host([data-theme=classique]) .ampli button{background:linear-gradient(#6b6b70,#2b2b2e);color:#f2f2f2;border:1px solid #000;box-shadow:inset 0 1px 0 rgba(255,255,255,.4),0 2px 3px rgba(0,0,0,.6)}\
 :host([data-theme=classique]) .ampli button.plein{background:linear-gradient(#ff5a7a,#b0102c)}\
-.knobbox{display:flex;flex-direction:column;align-items:center;gap:.1rem;min-width:62px}\
-.knob{width:62px;height:62px;touch-action:none;cursor:ns-resize;outline:none;border-radius:50%}\
+.knobbox{display:flex;flex-direction:column;align-items:center;gap:.1rem;min-width:84px;padding:6px}\
+.knob{width:72px;height:72px;position:relative;touch-action:none;cursor:grab;outline:none;border-radius:50%}.knob::after{content:\'\';position:absolute;inset:-10px;border-radius:50%}.knob.prise{cursor:grabbing}.knob.prise .notch{filter:drop-shadow(0 0 6px #ff3d6e)}\
 .knob:focus-visible{box-shadow:0 0 0 2px var(--a2)}.knob svg{width:100%;height:100%;display:block;overflow:visible}\
 .knob .arc{filter:drop-shadow(0 0 3px currentColor);color:#39ff88}.knob .notch{filter:drop-shadow(0 0 2px #ff3d6e)}\
 .kv{font:700 .72rem/1 ui-monospace,monospace;color:#39ff88;text-shadow:0 0 6px #39ff88;background:#050a06;border:1px solid #000;padding:.12rem .35rem;border-radius:2px;min-width:3.2rem;text-align:center}\
@@ -78,7 +78,7 @@ li label{display:flex;gap:.45rem;align-items:center;cursor:pointer;min-width:0}\
     k.innerHTML = '<svg viewBox="0 0 80 80" aria-hidden="true"><defs><radialGradient id="' + id + 'g" cx="35%" cy="28%" r="80%"><stop offset="0" stop-color="#9c9ca2"/><stop offset=".45" stop-color="#3b3b40"/><stop offset="1" stop-color="#0c0c0e"/></radialGradient></defs>' + ticks +
       '<path d="' + arc(31, -135, 135) + '" fill="none" stroke="rgba(0,0,0,.55)" stroke-width="3.5" stroke-linecap="round"/><path class="arc" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/>' +
       '<circle cx="40" cy="40" r="26" fill="#000" opacity=".55" transform="translate(0 2)"/><circle cx="40" cy="40" r="25" fill="url(#' + id + 'g)" stroke="#000"/><circle cx="40" cy="40" r="25" fill="none" stroke="rgba(255,255,255,.28)" stroke-width="2.4" stroke-dasharray="1 1.6"/>' +
-      '<circle cx="40" cy="40" r="17" fill="none" stroke="rgba(0,0,0,.5)"/><g class="notch"><line x1="40" y1="19" x2="40" y2="30" stroke="#ff3d6e" stroke-width="3" stroke-linecap="round"/></g></svg>';
+      '<circle cx="40" cy="40" r="17" fill="none" stroke="rgba(0,0,0,.5)"/><g class="notch"><line x1="40" y1="16" x2="40" y2="31" stroke="#ff3d6e" stroke-width="4" stroke-linecap="round"/></g></svg>';
     var kv = document.createElement('div'); kv.className = 'kv'; var lb = document.createElement('small'); lb.textContent = o.label || '';
     box.appendChild(k); box.appendChild(kv); box.appendChild(lb);
     var arcEl = k.querySelector('.arc'), notch = k.querySelector('.notch');
@@ -88,10 +88,17 @@ li label{display:flex;gap:.45rem;align-items:center;cursor:pointer;min-width:0}\
       kv.textContent = fmt(val); k.setAttribute('aria-valuenow', Math.round(val * 100) / 100); k.setAttribute('aria-valuetext', fmt(val));
     }
     function fixer(v, emettre) { v = Math.min(max, Math.max(min, Math.round(v / step) * step)); if (v === val) return; val = v; maj(); if (emettre !== false && o.onchange) o.onchange(val); }
-    var y0 = 0, v0 = 0, actif = false;
-    k.addEventListener('pointerdown', function (e) { actif = true; y0 = e.clientY; v0 = val; k.setPointerCapture(e.pointerId); e.preventDefault(); k.focus(); });
-    k.addEventListener('pointermove', function (e) { if (actif) fixer(v0 + (y0 - e.clientY + (e.clientX - 0) * 0) / 160 * (max - min)); });
-    k.addEventListener('pointerup', function () { actif = false; }); k.addEventListener('pointercancel', function () { actif = false; });
+    var actif = false;
+    function depuis(e) { // angle du curseur autour du centre → valeur : le repère se place sous le curseur
+      var r = k.getBoundingClientRect(), dx = e.clientX - (r.left + r.width / 2), dy = e.clientY - (r.top + r.height / 2);
+      if (Math.hypot(dx, dy) < 5) return;
+      var ang = Math.atan2(dx, -dy) * 180 / Math.PI;
+      if (ang > 135 || ang < -135) ang = val > (min + max) / 2 ? 135 : -135; // zone morte en bas : on reste à la butée la plus proche
+      fixer(min + (ang + 135) / 270 * (max - min));
+    }
+    k.addEventListener('pointerdown', function (e) { actif = true; k.setPointerCapture(e.pointerId); k.classList.add('prise'); depuis(e); e.preventDefault(); k.focus(); });
+    k.addEventListener('pointermove', function (e) { if (actif) depuis(e); });
+    var fin = function () { actif = false; k.classList.remove('prise'); }; k.addEventListener('pointerup', fin); k.addEventListener('pointercancel', fin);
     k.addEventListener('wheel', function (e) { e.preventDefault(); fixer(val + (e.deltaY < 0 ? 1 : -1) * Math.max(step, (max - min) / 50)); }, { passive: false });
     k.addEventListener('keydown', function (e) {
       var d = { ArrowUp: 1, ArrowRight: 1, ArrowDown: -1, ArrowLeft: -1 }[e.key], g = (max - min) / 10;

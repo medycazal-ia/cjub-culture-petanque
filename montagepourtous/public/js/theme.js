@@ -2,6 +2,9 @@
 (function () {
   var t = 'sang'; try { var s = localStorage.getItem('mpt-theme'); if (s === 'sang' || s === 'classique') t = s; } catch (e) {}
   document.documentElement.setAttribute('data-theme', t);
+  if (!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) {
+    var att = false; window.addEventListener('scroll', function () { if (att) return; att = true; requestAnimationFrame(function () { document.body.style.setProperty('--defil', (-window.scrollY) + 'px'); att = false; }); }, { passive: true });
+  }
   document.addEventListener('DOMContentLoaded', function () {
     var b = document.querySelectorAll('[data-theme-toggle]');
     function maj() { var c = document.documentElement.getAttribute('data-theme'); b.forEach(function (x) { x.textContent = c === 'sang' ? '☀️ Thème classique' : '🌙 Thème sang'; }); }

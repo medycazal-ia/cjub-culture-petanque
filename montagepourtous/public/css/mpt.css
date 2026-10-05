@@ -34,3 +34,22 @@ input:focus-visible{outline:2px solid var(--a2)}
 footer{max-width:1100px;margin:2rem auto;padding:1rem 1.2rem;color:var(--mut);font-size:.85rem;border-top:1px solid var(--line)}
 table{border-collapse:collapse;width:100%;font-size:.88rem}th,td{border:1px solid var(--line);padding:.3rem .5rem;text-align:left}th{background:var(--card2)}
 .pleine{max-width:none;padding:.6rem}.page-outil{max-width:1500px}
+
+/* ===== Cadre « bande de film » et clap de réalisateur ===== */
+body{padding:0 40px;--defil:0px}
+body::before,body::after{content:'';position:fixed;top:0;bottom:0;width:34px;z-index:6;pointer-events:none;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='34' height='44'%3E%3Crect width='34' height='44' fill='%230a0a0a'/%3E%3Crect x='7' y='9' width='20' height='26' rx='4' fill='%23d9d1b6'/%3E%3Crect x='7' y='9' width='20' height='26' rx='4' fill='none' stroke='%23000' stroke-opacity='.45'/%3E%3Crect x='1' width='1.5' height='44' fill='%23333'/%3E%3Crect x='31.5' width='1.5' height='44' fill='%23333'/%3E%3C/svg%3E") repeat-y;background-position:0 var(--defil);box-shadow:0 0 12px rgba(0,0,0,.7)}
+body::before{left:0}body::after{right:0}
+@media(max-width:700px){body{padding:0 22px}body::before,body::after{width:20px;background-size:20px 26px}}
+.haut{position:relative;margin:0 -40px 14px;padding-left:50px;padding-right:50px;z-index:5}
+@media(max-width:700px){.haut{margin:0 -22px 14px;padding-left:30px;padding-right:30px}}
+.haut::after{content:'';position:absolute;left:0;right:0;bottom:-12px;height:12px;background:repeating-linear-gradient(-45deg,#f4f4f4 0 14px,#101010 14px 28px);border-bottom:1px solid #000;box-shadow:0 3px 6px rgba(0,0,0,.5)}
+footer{margin-left:auto;margin-right:auto}
+.logo{display:inline-flex;align-items:center}.clap{margin-right:.6rem}
+.clap{position:relative;display:inline-block;width:40px;height:34px;flex:none}
+.clap::after{content:'';position:absolute;left:0;right:0;bottom:0;height:22px;background:linear-gradient(#222,#0d0d0d);border:2px solid #f4f4f4;border-radius:0 0 3px 3px;box-shadow:inset 0 -6px 0 rgba(255,255,255,.12)}
+.clap::before{content:'';position:absolute;left:0;right:0;top:2px;height:11px;background:repeating-linear-gradient(-55deg,#f4f4f4 0 7px,#111 7px 14px);border:2px solid #f4f4f4;border-radius:3px 3px 0 0;transform-origin:0 100%;animation:clap 1.8s ease-out .3s 1 both}
+.logo:hover .clap::before{animation:clap 1.2s ease-out 1 both}
+@keyframes clap{0%{transform:rotate(-30deg)}35%{transform:rotate(-30deg)}50%{transform:rotate(0)}58%{transform:rotate(-6deg)}66%,100%{transform:rotate(0)}}
+@media(prefers-reduced-motion:reduce){.clap::before{animation:none!important}}
+.carte{position:relative}.carte::before{content:'';position:absolute;left:0;right:0;top:0;height:7px;background:repeating-linear-gradient(-45deg,rgba(255,255,255,.85) 0 10px,#111 10px 20px);border-radius:6px 6px 0 0;opacity:.8}
+.carte{padding-top:1.4rem}
