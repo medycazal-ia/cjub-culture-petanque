@@ -6,8 +6,9 @@ Chaque version est conservée sous un nom, pour pouvoir revenir exactement à ce
 |---|---|---|
 | **MVP** | 5 octobre 2026 | Première version complète. Voir ci-dessous. |
 | **v1** | 5 octobre 2026 | MVP + correctif : le message de confirmation ne dépasse plus en bas de page. |
+| **v2** | 5 octobre 2026 | v1 + nouveau projet séparé **`montagepourtous/`** (outils de montage avec comptes gratuits, thème sang/classique, façade d'ampli). Le site du club est inchangé. |
 
-Les versions suivantes s'appelleront **v1**, **v2**, **v3**, etc.
+Les versions suivantes s'appelleront **v3**, **v4**, etc.
 
 ## MVP
 
@@ -35,3 +36,8 @@ git push origin main:v1
 ```
 
 (une branche `v1` figée sur l'état actuel). Sur GitHub, vous pouvez aussi créer une *Release* avec l'étiquette `v1` : menu **Releases → Draft a new release**.
+
+## v2
+
+- Nouveau dossier **`montagepourtous/`**, indépendant du site du club (voir son `LISEZ-MOI.md`) : montage avec transitions et effets, bandes son en parallèle, comptes gratuits (e-mail, prénom, nom), espace admin avec export CSV, thème « sang » ou « classique », boutons rotatifs et barres à LED façon ampli des années 90-2000.
+- Sauvegarde : `git push origin main:v2`.

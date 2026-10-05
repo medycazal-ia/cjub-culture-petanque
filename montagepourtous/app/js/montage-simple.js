@@ -26,22 +26,10 @@
   function nom(f) { return f.replace(/\.[^.]+$/, ''); }
 
   var CSS = '\
-:host{display:block;--mms-a:#c41e3a;font:16px/1.5 system-ui,Segoe UI,Roboto,Arial,sans-serif;color:#1a1a1a}\
-*{box-sizing:border-box}\
-.cadre{display:grid;grid-template-columns:minmax(280px,420px) 1fr;gap:1.2rem;background:#faf6f6;padding:1rem;border:1px solid rgba(0,0,0,.12)}\
-@media(max-width:820px){.cadre{grid-template-columns:1fr}}\
-h2{font-size:1.05rem;margin:.2rem 0 .5rem;color:var(--mms-a)}h1{font-size:1.3rem;margin:0 0 .8rem;color:var(--mms-a);grid-column:1/-1}\
-ol{list-style:none;margin:0;padding:0}\
-li{display:flex;align-items:center;gap:.4rem;background:#fff;border:1px solid rgba(0,0,0,.14);border-left:4px solid var(--mms-a);padding:.4rem .5rem;margin-bottom:.4rem}\
-li.actif{background:#fdeef0}li label{flex:1;display:flex;gap:.45rem;align-items:center;cursor:pointer;min-width:0}\
-li label .t{overflow-wrap:anywhere}.ico{font-size:1.1rem}\
-.dur{color:#555;font-size:.82rem;white-space:nowrap}.dur input{width:3.4rem;font:inherit;padding:.05rem .2rem}\
-button{font:inherit;cursor:pointer;border:2px solid var(--mms-a);background:#fff;color:var(--mms-a);padding:.35rem .8rem;border-radius:3px}\
-button:hover,button:focus-visible{background:var(--mms-a);color:#fff;outline:none}button.plein{background:var(--mms-a);color:#fff}button:disabled{opacity:.5;cursor:default}\
-button.petit{padding:.05rem .4rem;font-size:.85rem}\
-.barre{display:flex;flex-wrap:wrap;gap:.5rem;margin:.6rem 0}.note{color:#555;font-size:.88rem;margin:.3rem 0}\
-.depot{border:2px dashed var(--mms-a);padding:.9rem;text-align:center;background:#fff;margin-bottom:.8rem}.depot.sur{background:#fdeef0}\
-.scene{position:relative;background:#000;aspect-ratio:16/9;width:100%;overflow:hidden;border:1px solid rgba(0,0,0,.2)}\
+.cadre{display:grid;grid-template-columns:minmax(280px,420px) 1fr;gap:1.2rem}.cadre.cine{grid-template-columns:1fr}.cadre.cine .gauche{order:2}\
+@media(max-width:820px){.cadre{grid-template-columns:1fr}}.entete{grid-column:1/-1}\
+.cvwrap{margin:0 auto;width:100%}\
+.scene{position:relative;background:#000;aspect-ratio:16/9;width:100%;overflow:hidden;border:1px solid #000;border-radius:3px;box-shadow:0 0 0 3px #2a2a2d,0 6px 14px rgba(0,0,0,.6)}\
 .scene video,.scene img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:none}\
 .scene.v video,.scene.i img{display:block}\
 .carte{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;color:#fff;text-align:center;padding:1rem;background:#111}\
@@ -50,9 +38,8 @@ button.petit{padding:.05rem .4rem;font-size:.85rem}\
 #etat{min-height:1.5em;font-weight:700;margin-top:.4rem}';
 
   var HTML = '\
-<div class="cadre">\
-<h1 id="titre"></h1>\
-<section>\
+<div class="cadre" id="cadre"><div class="entete"><h1 id="titre"></h1><button id="theme"></button></div>\
+<section class="gauche">\
 <h2>1. Ajoutez vos fichiers</h2>\
 <div class="depot" id="depot"><button class="plein" id="choisir">📂 Choisir des fichiers</button>\
 <p class="note">ou glissez-les ici : <b>vidéos</b> (mp4, webm, mov, m4v, ogv…), <b>sons</b> (mp3, wav, m4a, ogg, flac, opus…), <b>photos</b> (jpg, png, webp, gif, avif, bmp, svg…). Peu importe leur nom.</p>\
@@ -65,23 +52,32 @@ button.petit{padding:.05rem .4rem;font-size:.85rem}\
 <p class="note" id="expetat" role="status"></p><p class="note" id="total"></p>\
 <p class="note">L\'enregistrement se fait <b>en direct</b> (durée de la sélection) : gardez cet onglet ouvert et visible. Le fichier se télécharge ensuite tout seul.</p>\
 </section>\
-<section><h2>3. Lecture</h2>\
-<div class="scene" id="scene"><video id="v" controls playsinline></video><img id="img" alt=""><div class="carte"><div><b>🎵</b><span id="cn"></span></div></div></div>\
-<div class="barre"><button id="prec">⏮ Précédent</button><button id="suiv">Suivant ⏭</button><button id="plein">⛶ Plein écran</button></div>\
+<section class="droite"><h2>3. Lecture</h2>\
+<div class="cvwrap" id="cvwrap"><div class="scene" id="scene"><video id="v" controls playsinline></video><img id="img" alt=""><div class="carte"><div><b>🎵</b><span id="cn"></span></div></div></div></div>\
+<div class="ampli"><div class="rang"><div class="barre" style="margin:0"><button id="prec">⏮ Précédent</button><button id="suiv">Suivant ⏭</button><button id="plein">⛶ Plein écran</button></div><div id="knobvol"></div></div>\
+<div class="rang" style="margin-top:.5rem;justify-content:flex-start"><small>Taille de l\'aperçu</small><button id="moins" class="petit" title="Plus petit" aria-label="Aperçu plus petit">−</button><input type="range" class="fader" id="taille" min="30" max="100" step="5" aria-label="Taille de l\'aperçu"><button id="plus" class="petit" title="Plus grand" aria-label="Aperçu plus grand">+</button><button id="cine">🎬 Mode cinéma</button></div></div>\
 <div id="etat" role="status"></div></section></div>';
 
   class MontageMediaSimplifie extends HTMLElement {
     connectedCallback() {
       if (this._ok) return; this._ok = true;
       var r = this.attachShadow({ mode: 'open' });
-      r.innerHTML = '<style>' + CSS + '</style>' + HTML;
+      r.innerHTML = '<style>' + MPT.CSS + CSS + '</style>' + HTML;
       var $ = this.$ = function (id) { return r.getElementById(id); };
       this.items = []; this.courant = -1; this.enExport = false; this.uid = 0; this.minuteur = null;
       this.v = $('v'); this.img = $('img'); this.scene = $('scene');
       var m = /^(\d+)x(\d+)$/.exec(this.getAttribute('resolution') || '1280x720');
       this.W = m ? +m[1] : 1280; this.H = m ? +m[2] : 720;
       this.dureeImage = Math.max(1, +this.getAttribute('duree-image') || 5);
-      this.style.setProperty('--mms-a', this.getAttribute('couleur') || '#c41e3a');
+      if (this.getAttribute('couleur')) this.style.setProperty('--a', this.getAttribute('couleur'));
+      var bt = $('theme'); MPT.suivreTheme(this, function (t) { bt.textContent = t === 'sang' ? '☀️ Thème classique' : '🌙 Thème sang'; });
+      bt.onclick = function () { MPT.setTheme(MPT.getTheme() === 'sang' ? 'classique' : 'sang'); };
+      this.volume = 1; $('knobvol').appendChild(MPT.knob({ label: 'Volume', min: 0, max: 150, value: 100, format: function (v) { return Math.round(v) + '%'; }, onchange: function (v) { self.volume = v / 100; if (self.gainSortie) self.gainSortie.gain.value = self.volume; else self.v.volume = Math.min(1, self.volume); } }).el);
+      var ap = 100; try { ap = +localStorage.getItem('mpt-apercu') || 100; } catch (e) {}
+      var reglerTaille = function (p) { p = Math.min(100, Math.max(30, p)); $('cvwrap').style.width = p + '%'; $('taille').value = p; try { localStorage.setItem('mpt-apercu', p); } catch (e) {} };
+      reglerTaille(ap); $('taille').oninput = function () { reglerTaille(+$('taille').value); };
+      $('moins').onclick = function () { reglerTaille(+$('taille').value - 10); }; $('plus').onclick = function () { reglerTaille(+$('taille').value + 10); };
+      $('cine').onclick = function () { var c = $('cadre').classList.toggle('cine'); $('cine').textContent = c ? '🗔 Mode normal' : '🎬 Mode cinéma'; };
       $('titre').textContent = this.getAttribute('titre') || 'Montage média simplifié';
       var self = this;
       $('choisir').onclick = function () { $('fichiers').click(); };
@@ -177,6 +173,11 @@ button.petit{padding:.05rem .4rem;font-size:.85rem}\
       this.courant = -1; this.vider(); this.$('etat').textContent = 'Arrêté.'; this.dessiner();
     }
     lancerMinuteur() { var self = this; this.debutImg = Date.now(); this.minuteur = setTimeout(function () { var f = self.finImage; if (f) f(); }, Math.max(0, this.restant)); }
+    assurerAC() {
+      if (this.ac) return; var AC = window.AudioContext || window.webkitAudioContext; this.ac = new AC();
+      var src = this.ac.createMediaElementSource(this.v); this.gainSortie = this.ac.createGain(); this.gainSortie.gain.value = this.volume; this.v.volume = 1;
+      this.dest = this.ac.createMediaStreamDestination(); src.connect(this.gainSortie); this.gainSortie.connect(this.dest); this.gainSortie.connect(this.ac.destination);
+    }
     montrer(it, onFin) {
       var self = this; clearTimeout(this.minuteur);
       this.$('etat').textContent = 'Lecture : ' + it.titre; this.titreCourant = it.titre;
@@ -187,7 +188,7 @@ button.petit{padding:.05rem .4rem;font-size:.85rem}\
         this.restant = it.sec * 1000; this.lancerMinuteur();
       } else {
         this.scene.className = 'scene ' + (it.genre === 'audio' ? 'a' : 'v'); this.$('cn').textContent = it.titre;
-        this.v.src = it.url; this.v.play().catch(function () {});
+        this.assurerAC(); this.ac.resume(); this.v.src = it.url; this.v.play().catch(function () {});
       }
     }
     jouer(i) {
@@ -231,8 +232,7 @@ button.petit{padding:.05rem .4rem;font-size:.85rem}\
       var morceaux = [], rec = null;
       try {
         if (!this.cv) { this.cv = document.createElement('canvas'); this.cv.width = this.W; this.cv.height = this.H; this.g = this.cv.getContext('2d'); }
-        if (!this.ac) { this.ac = new AC(); var src = this.ac.createMediaElementSource(v); this.dest = this.ac.createMediaStreamDestination(); src.connect(this.dest); src.connect(this.ac.destination); }
-        await this.ac.resume();
+        this.assurerAC(); await this.ac.resume();
         v.controls = false; this.scene.className = 'scene v';
         var flux = new MediaStream([this.cv.captureStream(30).getVideoTracks()[0], this.dest.stream.getAudioTracks()[0]]);
         rec = new MediaRecorder(flux, { mimeType: mime, videoBitsPerSecond: 6000000, audioBitsPerSecond: 192000 });

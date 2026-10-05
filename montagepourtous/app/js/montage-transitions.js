@@ -19,38 +19,24 @@
   function mmss(s) { s = Math.max(0, s); return Math.floor(s / 60) + ':' + ('0' + Math.floor(s % 60)).slice(-2); }
   function num(x, d, a, b) { x = parseFloat(x); if (!isFinite(x)) x = d; return Math.min(b, Math.max(a, x)); }
   var TRANS = [['fondu', 'Fondu enchaîné'], ['noir', 'Fondu par le noir'], ['glisse', 'Glissement'], ['zoom', 'Zoom'], ['blanc', 'Flash blanc'], ['haut', 'Glissement vers le haut'], ['volet', 'Volet (balayage)'], ['cercle', 'Ouverture en cercle'], ['aucune', 'Coupure franche']];
-  var EFFETS = [['aucun', 'Aucun effet'], ['nb', 'Noir et blanc'], ['sepia', 'Sépia'], ['vif', 'Couleurs vives'], ['delave', 'Délavé'], ['chaud', 'Teinte chaude'], ['froid', 'Teinte froide'], ['clair', 'Plus lumineux'], ['sombre', 'Plus sombre'], ['flou', 'Flou doux'], ['negatif', 'Négatif'], ['vignette', 'Vignette (bords sombres)'], ['film', 'Vieux film']];
+  var EFFETS = [['aucun', 'Aucun effet'], ['nb', 'Noir et blanc'], ['sepia', 'Sépia'], ['vif', 'Couleurs vives'], ['delave', 'Délavé'], ['chaud', 'Teinte chaude'], ['froid', 'Teinte froide'], ['clair', 'Plus lumineux'], ['sombre', 'Plus sombre'], ['flou', 'Flou doux'], ['negatif', 'Négatif'], ['vignette', 'Vignette (bords sombres)'], ['film', 'Vieux film'], ['vhs', 'VHS années 90'], ['super8', 'Super 8 (grain)']];
   var MOUV = [['defaut', 'Selon le réglage général'], ['aucun', 'Fixe'], ['zoom+', 'Zoom avant lent'], ['zoom-', 'Zoom arrière lent'], ['gauche', 'Panoramique vers la gauche'], ['droite', 'Panoramique vers la droite']];
   function options(l) { return l.map(function (x) { return '<option value="' + x[0] + '">' + x[1] + '</option>'; }).join(''); }
 
   var CSS = '\
-:host{display:block;--mms-a:#c41e3a;font:16px/1.5 system-ui,Segoe UI,Roboto,Arial,sans-serif;color:#1a1a1a}*{box-sizing:border-box}\
-.cadre{display:grid;grid-template-columns:minmax(300px,480px) 1fr;gap:1.2rem;background:#faf6f6;padding:1rem;border:1px solid rgba(0,0,0,.12)}\
-@media(max-width:900px){.cadre{grid-template-columns:1fr}}\
-h1{font-size:1.3rem;margin:0;color:var(--mms-a);grid-column:1/-1}h2{font-size:1.05rem;margin:.9rem 0 .4rem;color:var(--mms-a)}\
-ol{list-style:none;margin:0;padding:0}\
-li{display:flex;flex-wrap:wrap;align-items:center;gap:.35rem;background:#fff;border:1px solid rgba(0,0,0,.14);border-left:4px solid var(--mms-a);padding:.35rem .5rem;margin-bottom:.35rem}\
-li.piste{border-left-color:#2b6cb0}li .t{flex:1;min-width:6rem;overflow-wrap:anywhere}\
-.ico{font-size:1.1rem}.pan{flex-basis:100%;display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;padding:.3rem 0 .1rem;border-top:1px dashed rgba(0,0,0,.2);font-size:.9rem}\
-.pan textarea{width:100%;font:inherit}.pan input[type=text]{flex:1;min-width:8rem;font:inherit}\
-input[type=number]{width:3.6rem;font:inherit;padding:.05rem .2rem}select{font:inherit;max-width:11rem}\
-button{font:inherit;cursor:pointer;border:2px solid var(--mms-a);background:#fff;color:var(--mms-a);padding:.35rem .8rem;border-radius:3px}\
-button:hover,button:focus-visible{background:var(--mms-a);color:#fff;outline:none}button.plein{background:var(--mms-a);color:#fff}button:disabled{opacity:.5;cursor:default}\
-button.petit{padding:.05rem .4rem;font-size:.85rem}.barre{display:flex;flex-wrap:wrap;gap:.5rem;margin:.5rem 0;align-items:center}\
-.note{color:#555;font-size:.88rem;margin:.3rem 0}.depot{border:2px dashed var(--mms-a);padding:.8rem;text-align:center;background:#fff}.depot.sur{background:#fdeef0}\
-.reg{display:grid;grid-template-columns:1fr 1fr;gap:.3rem .8rem;font-size:.92rem;background:#fff;border:1px solid rgba(0,0,0,.14);padding:.5rem}\
-canvas{width:100%;aspect-ratio:16/9;background:#000;display:block;border:1px solid rgba(0,0,0,.25)}\
-.trans{display:flex;gap:.5rem;align-items:center;margin-top:.4rem}.trans input[type=range]{flex:1}\
-#lanes{display:flex;margin-top:.4rem;background:#fff;border:1px solid rgba(0,0,0,.14);padding:.2rem 0}.labs{flex:none;width:13rem}.zone{position:relative;flex:1;cursor:pointer}\
-.lab,.rang{height:1.7rem;margin:.15rem 0;position:relative}.lab{display:flex;align-items:center;gap:.25rem;padding:0 .3rem;font-size:.78rem;white-space:nowrap}.lab span{flex:1;overflow:hidden;text-overflow:ellipsis}.lab button{font-size:.7rem;padding:0 .3rem;white-space:nowrap}\
-.bl.off{opacity:.3;background-image:repeating-linear-gradient(45deg,transparent 0 4px,rgba(255,255,255,.55) 4px 8px)}li.coupe{opacity:.55}\
-.bl{position:absolute;top:0;bottom:0;background:var(--mms-a);opacity:.85;color:#fff;font-size:.7rem;overflow:hidden;white-space:nowrap;padding:0 .2rem;border-right:1px solid #fff}\
-.bl.s{background:#2b6cb0}.bl.t{background:#6b5b95}#tete{position:absolute;top:0;bottom:0;width:2px;background:#000;pointer-events:none}\
+.cadre{display:grid;grid-template-columns:minmax(300px,480px) 1fr;gap:1.2rem}.cadre.cine{grid-template-columns:1fr}.cadre.cine .gauche{order:2}\
+@media(max-width:900px){.cadre{grid-template-columns:1fr}}.entete{grid-column:1/-1}\
+.cvwrap{margin:0 auto;width:100%}canvas{width:100%;aspect-ratio:16/9;background:#000;display:block;border:1px solid #000;border-radius:3px;box-shadow:0 0 0 3px #2a2a2d,0 6px 14px rgba(0,0,0,.6)}\
+#lanes{display:flex;margin-top:.4rem;background:var(--card);border:1px solid var(--line);padding:.2rem 0;border-radius:3px}.labs{flex:none;width:13rem}.zone{position:relative;flex:1;cursor:pointer}\
+.lab,.rang2{height:1.7rem;margin:.15rem 0;position:relative}.lab{display:flex;align-items:center;gap:.25rem;padding:0 .3rem;font-size:.78rem;white-space:nowrap}.lab span{flex:1;overflow:hidden;text-overflow:ellipsis}.lab button{font-size:.7rem;padding:0 .3rem;white-space:nowrap}\
+.bl{position:absolute;top:0;bottom:0;background:var(--a);opacity:.9;color:#fff;font-size:.7rem;overflow:hidden;white-space:nowrap;padding:0 .2rem;border-right:1px solid rgba(255,255,255,.6);border-radius:2px;box-shadow:0 0 6px var(--a2)}\
+.bl.s{background:#1f8fb8;box-shadow:0 0 6px #2fd6ff}.bl.t{background:#6b5b95}.bl.off{opacity:.3;box-shadow:none;background-image:repeating-linear-gradient(45deg,transparent 0 4px,rgba(255,255,255,.55) 4px 8px)}\
+#tete{position:absolute;top:0;bottom:0;width:2px;background:#39ff88;box-shadow:0 0 8px #39ff88;pointer-events:none}\
 #etat,#expetat{min-height:1.4em;font-weight:700}';
 
   var HTML = '\
-<div class="cadre"><h1 id="titre"></h1>\
-<section>\
+<div class="cadre" id="cadre"><div class="entete"><h1 id="titre"></h1><button id="theme"></button></div>\
+<section class="gauche">\
 <h2>1. Ajoutez vos fichiers</h2>\
 <div class="depot" id="depot"><button class="plein" id="choisir">📂 Choisir des fichiers</button> <button id="addtexte">✏️ Ajouter un texte</button>\
 <p class="note">ou glissez-les ici : <b>photos</b>, <b>vidéos</b> et <b>sons</b> (mp3, wav, m4a, ogg…). Les photos, vidéos et textes forment l\'image ; les sons forment les bandes son, <b>jouées en même temps</b>.</p>\
@@ -65,10 +51,11 @@ canvas{width:100%;aspect-ratio:16/9;background:#000;display:block;border:1px sol
 <label><input type="checkbox" id="fadin" checked> Fondu au début</label>\
 <label><input type="checkbox" id="fadout" checked> Fondu à la fin</label></div>\
 </section>\
-<section><h2>5. Aperçu</h2>\
-<canvas id="cv"></canvas>\
-<div class="trans"><span id="tps">0:00 / 0:00</span><input type="range" id="curseur" min="0" max="1000" value="0" aria-label="Position"></div>\
-<div class="barre"><button id="lire" class="plein">▶ Lire</button><button id="arreter" disabled>⏹ Arrêter</button><button id="plein">⛶ Plein écran</button></div>\
+<section class="droite"><h2>5. Aperçu</h2>\
+<div class="cvwrap" id="cvwrap"><canvas id="cv"></canvas></div>\
+<div class="ampli"><div class="rang"><div class="temps" id="tps">0:00 / 0:00</div><div id="ledpos" style="flex:1;min-width:160px;display:flex"></div></div>\
+<div class="rang" style="margin-top:.6rem"><div class="barre" style="margin:0"><button id="lire" class="plein">▶ Lire</button><button id="arreter" disabled>⏹ Arrêter</button><button id="plein">⛶ Plein écran</button></div><div id="knobmaster"></div><div id="vumetre" style="flex:1;display:flex;min-width:170px"></div></div>\
+<div class="rang" style="margin-top:.5rem;justify-content:flex-start"><small>Taille de l\'aperçu</small><button id="moins" class="petit" title="Plus petit" aria-label="Aperçu plus petit">−</button><input type="range" class="fader" id="taille" min="30" max="100" step="5" aria-label="Taille de l\'aperçu"><button id="plus" class="petit" title="Plus grand" aria-label="Aperçu plus grand">+</button><button id="cine">🎬 Mode cinéma</button></div></div>\
 <div class="barre"><button id="lire2" class="plein">▶ Lire</button><button id="arreter2" disabled>⏹ Arrêter</button><span class="note">Une ligne par fichier. « Actif / Coupé » l\'inclut ou l\'exclut du montage (aperçu et fichier final). Cliquez dans les barres pour aller à un endroit.</span></div>\
 <div id="lanes"></div><div id="etat" role="status"></div>\
 <div class="barre"><button id="exporter" class="plein">💾 Enregistrer en un seul fichier</button></div>\
@@ -79,13 +66,25 @@ canvas{width:100%;aspect-ratio:16/9;background:#000;display:block;border:1px sol
   class MontageTransitions extends HTMLElement {
     connectedCallback() {
       if (this._ok) return; this._ok = true;
-      var self = this, r = this.attachShadow({ mode: 'open' }); r.innerHTML = '<style>' + CSS + '</style>' + HTML;
+      var self = this, r = this.attachShadow({ mode: 'open' }); r.innerHTML = '<style>' + MPT.CSS + CSS + '</style>' + HTML;
       var $ = this.$ = function (id) { return r.getElementById(id); };
       this.clips = []; this.pistes = []; this.t = 0; this.total = 0; this.etat = 'arret'; this.uid = 0; this.srcs = []; this.exportEnCours = false;
       var m = /^(\d+)x(\d+)$/.exec(this.getAttribute('resolution') || '1280x720'); this.W = m ? +m[1] : 1280; this.H = m ? +m[2] : 720;
       this.dureeImage = num(this.getAttribute('duree-image'), 5, 1, 600); this.transDefaut = 'fondu';
-      this.style.setProperty('--mms-a', this.getAttribute('couleur') || '#c41e3a');
+      if (this.getAttribute('couleur')) this.style.setProperty('--a', this.getAttribute('couleur'));
       $('titre').textContent = this.getAttribute('titre') || 'Montage avec transitions et bandes son';
+      var bt = $('theme'); MPT.suivreTheme(this, function (t) { bt.textContent = t === 'sang' ? '☀️ Thème classique' : '🌙 Thème sang'; });
+      bt.onclick = function () { MPT.setTheme(MPT.getTheme() === 'sang' ? 'classique' : 'sang'); };
+      this.volumeMaster = 1;
+      this.kMaster = MPT.knob({ label: 'Volume général', min: 0, max: 150, value: 100, format: function (v) { return Math.round(v) + '%'; }, onchange: function (v) { self.volumeMaster = v / 100; if (self.master) self.master.gain.value = self.volumeMaster; } });
+      $('knobmaster').appendChild(this.kMaster.el);
+      this.vu = MPT.vu(); $('vumetre').appendChild(this.vu.el);
+      this.ledpos = MPT.led(64, { label: 'Position dans le montage', onseek: function (f) { self.aller(f * self.total); } }); $('ledpos').appendChild(this.ledpos.el);
+      var ap = 100; try { ap = +localStorage.getItem('mpt-apercu') || 100; } catch (e) {}
+      var reglerTaille = function (p) { p = Math.min(100, Math.max(30, p)); $('cvwrap').style.width = p + '%'; $('taille').value = p; try { localStorage.setItem('mpt-apercu', p); } catch (e) {} };
+      reglerTaille(ap); $('taille').oninput = function () { reglerTaille(+$('taille').value); };
+      $('moins').onclick = function () { reglerTaille(+$('taille').value - 10); }; $('plus').onclick = function () { reglerTaille(+$('taille').value + 10); };
+      $('cine').onclick = function () { var c = $('cadre').classList.toggle('cine'); $('cine').textContent = c ? '🗔 Mode normal' : '🎬 Mode cinéma'; };
       this.cv = $('cv'); this.cv.width = this.W; this.cv.height = this.H; this.g = this.cv.getContext('2d');
       $('gdur').value = num(this.getAttribute('duree-transition'), 1, 0.2, 5);
       var opts = options(TRANS);
@@ -104,7 +103,6 @@ canvas{width:100%;aspect-ratio:16/9;background:#000;display:block;border:1px sol
       $('arreter').onclick = function () { self.arreter(); };
       $('lire2').onclick = function () { $('lire').click(); }; $('arreter2').onclick = function () { self.arreter(); };
       $('plein').onclick = function () { (self.cv.requestFullscreen || self.cv.webkitRequestFullscreen || function () {}).call(self.cv); };
-      $('curseur').oninput = function () { self.aller(($('curseur').value / 1000) * self.total); };
             $('exporter').onclick = function () { self.exporter(); };
       this.dessiner();
     }
@@ -203,27 +201,27 @@ canvas{width:100%;aspect-ratio:16/9;background:#000;display:block;border:1px sol
       if (c.genre === 'texte') h += '<textarea rows="3" class="tx" placeholder="Votre texte"></textarea><label>Fond <input type="color" class="bg"></label><label>Texte <input type="color" class="fg"></label>';
       h += '<label>Effet <select class="ef"></select></label><label>Mouvement <select class="mv"></select></label>';
       h += '<input type="text" class="lg" placeholder="Légende en bas de l\'image (facultatif)">';
-      if (c.genre === 'video') h += '<label><input type="checkbox" class="so"> Garder le son de la vidéo</label><label>Volume <input type="range" class="vo" min="0" max="100"></label>';
+      if (c.genre === 'video') h += '<label><input type="checkbox" class="so"> Garder le son de la vidéo</label><span class="kvol"></span>';
       p.innerHTML = h;
       var q = function (s) { return p.querySelector(s); };
       if (q('.tx')) { q('.tx').value = c.texte; q('.tx').onchange = function () { c.texte = q('.tx').value; self.dessiner(); }; q('.bg').value = c.bg; q('.bg').onchange = function () { c.bg = q('.bg').value; self.rendre(); }; q('.fg').value = c.fg; q('.fg').onchange = function () { c.fg = q('.fg').value; self.rendre(); }; }
       q('.ef').innerHTML = options(EFFETS); q('.ef').value = c.effet; q('.ef').onchange = function () { c.effet = q('.ef').value; self.rendre(); };
       q('.mv').innerHTML = options(MOUV); q('.mv').value = c.mouv; q('.mv').onchange = function () { c.mouv = q('.mv').value; self.rendre(); };
       q('.lg').value = c.legende; q('.lg').onchange = function () { c.legende = q('.lg').value; self.rendre(); };
-      if (q('.so')) { q('.so').checked = c.son; q('.so').onchange = function () { c.son = q('.so').checked; }; q('.vo').value = Math.round(c.vol * 100); q('.vo').onchange = function () { c.vol = q('.vo').value / 100; }; }
+      if (q('.so')) { q('.so').checked = c.son; q('.so').onchange = function () { c.son = q('.so').checked; }; q('.kvol').appendChild(MPT.knob({ label: 'Volume', min: 0, max: 100, value: Math.round(c.vol * 100), format: function (v) { return v + '%'; }, onchange: function (v) { c.vol = v / 100; } }).el); }
       return p;
     }
     lignePiste(p, i) {
       var self = this, li = document.createElement('li'); li.className = 'piste' + (p.actif ? '' : ' coupe');
       li.innerHTML = '<input type="checkbox" class="ac" title="Actif / Coupé" aria-label="Actif"><span class="ico">🎵</span><span class="t"></span><span class="du"></span>' +
-        '<div class="pan" style="border:0"><label>Début <input type="number" class="st" min="0" step="1"> s</label><label>Volume <input type="range" class="vo" min="0" max="100"></label>' +
+        '<div class="pan" style="border:0"><label>Début <input type="number" class="st" min="0" step="1"> s</label><span class="kvol"></span>' +
         '<label>Fondu entrée <input type="number" class="fi" min="0" max="30" step="0.5"> s</label><label>Fondu sortie <input type="number" class="fo" min="0" max="30" step="0.5"> s</label>' +
         '<label><input type="checkbox" class="lp"> Répéter jusqu\'à la fin</label></div>';
       li.querySelector('.t').textContent = p.titre; li.querySelector('.du').textContent = p.buf ? Math.round(p.sec) + ' s' : (p.sec === 0 ? '(lecture impossible ?)' : '');
       var q = function (s) { return li.querySelector(s); };
       q('.ac').checked = p.actif; q('.ac').onchange = function () { p.actif = q('.ac').checked; self.modifie(); };
       q('.st').value = p.start; q('.st').onchange = function () { p.start = num(q('.st').value, 0, 0, 36000); self.dessiner(); };
-      q('.vo').value = Math.round(p.vol * 100); q('.vo').onchange = function () { p.vol = q('.vo').value / 100; };
+      q('.kvol').appendChild(MPT.knob({ label: 'Volume', min: 0, max: 100, value: Math.round(p.vol * 100), format: function (v) { return v + '%'; }, onchange: function (v) { p.vol = v / 100; } }).el);
       q('.fi').value = p.fi; q('.fi').onchange = function () { p.fi = num(q('.fi').value, 1, 0, 30); };
       q('.fo').value = p.fo; q('.fo').onchange = function () { p.fo = num(q('.fo').value, 1, 0, 30); };
       q('.lp').checked = p.loop; q('.lp').onchange = function () { p.loop = q('.lp').checked; self.dessiner(); };
@@ -236,7 +234,7 @@ canvas{width:100%;aspect-ratio:16/9;background:#000;display:block;border:1px sol
       var ligne = function (texte, actif, bascule) {
         var lb = document.createElement('div'); lb.className = 'lab'; var sp = document.createElement('span'); sp.textContent = texte; sp.title = texte; lb.appendChild(sp);
         if (bascule) { var b = document.createElement('button'); b.textContent = actif ? '✔ Actif' : '✖ Coupé'; b.setAttribute('aria-pressed', actif); b.title = 'Activer / désactiver'; b.onclick = function (e) { e.stopPropagation(); bascule(); }; lb.appendChild(b); }
-        labs.appendChild(lb); var rg = document.createElement('div'); rg.className = 'rang'; zone.appendChild(rg); return rg;
+        labs.appendChild(lb); var rg = document.createElement('div'); rg.className = 'rang2'; zone.appendChild(rg); return rg;
       };
       var bloc = function (rg, cls, d, f, txt, off) { var b = document.createElement('div'); b.className = 'bl' + cls + (off ? ' off' : ''); b.style.left = d / T * 100 + '%'; b.style.width = Math.max(0, f - d) / T * 100 + '%'; b.textContent = txt; b.title = txt; rg.appendChild(b); };
       var nomc = function (c) { return c.genre === 'texte' ? '✏️ ' + ((c.texte || 'Texte').split('\n')[0].slice(0, 24)) : (c.genre === 'video' ? '🎬 ' : '🖼️ ') + c.titre; };
@@ -253,7 +251,7 @@ canvas{width:100%;aspect-ratio:16/9;background:#000;display:block;border:1px sol
     majTemps() {
       var T = Math.max(this.total, 0.001);
       this.$('tps').textContent = mmss(this.t) + ' / ' + mmss(this.total);
-      this.$('curseur').value = Math.round(this.t / T * 1000);
+      this.ledpos.set(this.t / T);
       var th = this.$('tete'); if (th) th.style.left = Math.min(100, this.t / T * 100) + '%';
     }
     majBoutons() {
@@ -267,6 +265,7 @@ canvas{width:100%;aspect-ratio:16/9;background:#000;display:block;border:1px sol
         case 'delave': return 'saturate(.45) brightness(1.1)'; case 'chaud': return 'sepia(.35) saturate(1.3) hue-rotate(-10deg)';
         case 'froid': return 'hue-rotate(15deg) saturate(1.1) brightness(1.05)'; case 'clair': return 'brightness(1.3)'; case 'sombre': return 'brightness(.7) contrast(1.1)';
         case 'flou': return 'blur(' + Math.round(this.H / 120) + 'px)'; case 'negatif': return 'invert(1)';
+        case 'vhs': return 'saturate(1.4) contrast(1.15) brightness(1.05)'; case 'super8': return 'sepia(.5) contrast(1.1) saturate(1.2)';
         case 'film': return 'sepia(.8) contrast(1.15) brightness(' + (1 + 0.07 * Math.sin(t * 37) * Math.sin(t * 11)).toFixed(3) + ')';
       }
       return 'none';
@@ -307,9 +306,19 @@ canvas{width:100%;aspect-ratio:16/9;background:#000;display:block;border:1px sol
           if (w && h && (c.genre === 'image' || el.readyState >= 2)) { var k = (cover ? Math.max : Math.min)(W / w, H / h); g.translate(mv.dx, 0); g.scale(s * mv.s, s * mv.s); try { g.drawImage(el, -w * k / 2, -h * k / 2, w * k, h * k); } catch (e) {} }
         }
         g.filter = 'none';
-        if (c.effet === 'vignette' || c.effet === 'film') {
-          var gr = g.createRadialGradient(0, 0, H * 0.3, 0, 0, Math.hypot(W, H) * 0.55); gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(0,0,0,.7)');
-          g.setTransform(1, 0, 0, 1, 0, 0); g.translate(W / 2 + dx, H / 2 + dy); g.fillStyle = gr; g.fillRect(-W / 2, -H / 2, W, H);
+        if (c.effet === 'vignette' || c.effet === 'film' || c.effet === 'super8' || c.effet === 'vhs') {
+          g.setTransform(1, 0, 0, 1, dx, dy);
+          if (c.effet !== 'vhs') { var gr = g.createRadialGradient(W / 2, H / 2, H * 0.3, W / 2, H / 2, Math.hypot(W, H) * 0.55); gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(0,0,0,.7)'); g.fillStyle = gr; g.fillRect(0, 0, W, H); }
+          if (c.effet === 'vhs') {
+            if (!self.motifVHS) { var pc = document.createElement('canvas'); pc.width = 1; pc.height = 4; var px = pc.getContext('2d'); px.fillStyle = 'rgba(0,0,0,.32)'; px.fillRect(0, 0, 1, 2); self.motifVHS = g.createPattern(pc, 'repeat'); }
+            g.fillStyle = self.motifVHS; g.fillRect(0, 0, W, H);
+            g.fillStyle = 'rgba(255,255,255,.07)'; g.fillRect(0, (t * 90) % (H + 40) - 20, W, 10 + 6 * Math.abs(Math.sin(t * 5)));
+            g.fillStyle = 'rgba(255,0,60,.05)'; g.fillRect(0, 0, W, H);
+          }
+          if (c.effet === 'super8' || c.effet === 'film') {
+            for (var gi = 0; gi < 220; gi++) { g.fillStyle = Math.random() < 0.5 ? 'rgba(255,255,255,.22)' : 'rgba(0,0,0,.28)'; g.fillRect(Math.random() * W, Math.random() * H, 2, 2); }
+            if (Math.random() < 0.15) { g.fillStyle = 'rgba(255,255,255,.18)'; g.fillRect(Math.random() * W, 0, 1.5, H); }
+          }
         }
         g.restore();
         if (c.legende) { g.save(); g.globalAlpha = a; g.translate(dx, dy); self.legende(c.legende); g.restore(); }
@@ -340,7 +349,7 @@ canvas{width:100%;aspect-ratio:16/9;background:#000;display:block;border:1px sol
     /* ---------- lecture ---------- */
     assurerAC() {
       if (this.ac) return; var AC = window.AudioContext || window.webkitAudioContext; this.ac = new AC();
-      this.master = this.ac.createGain(); this.dest = this.ac.createMediaStreamDestination(); this.master.connect(this.dest); this.master.connect(this.ac.destination);
+      this.master = this.ac.createGain(); this.master.gain.value = this.volumeMaster; this.vu.brancher(this.ac, this.master); this.dest = this.ac.createMediaStreamDestination(); this.master.connect(this.dest); this.master.connect(this.ac.destination);
     }
     async preparerSons() {
       var self = this, a = this.clips.filter(function (c) { return c.actif && c.genre === 'video' && c.son && !c.buf && !c.essaye; });
@@ -377,7 +386,7 @@ canvas{width:100%;aspect-ratio:16/9;background:#000;display:block;border:1px sol
       var t = depuis !== undefined ? depuis : (this.etat === 'pause' ? this.t : (this.t >= this.total - 0.05 ? 0 : this.t));
       this.assurerAC(); await this.ac.resume(); await this.preparerSons();
       this.arreterSons(); this.tDebut = t; this.ctx0 = this.ac.currentTime + 0.12; this.programmerSons(t);
-      this.etat = 'lecture'; this.majBoutons(); this.$('etat').textContent = ''; this.tic(this.idBoucle = (this.idBoucle || 0) + 1);
+      this.etat = 'lecture'; this.vu.demarrer(); this.majBoutons(); this.$('etat').textContent = ''; this.tic(this.idBoucle = (this.idBoucle || 0) + 1);
     }
     tic(id) {
       if (this.etat !== 'lecture' || id !== this.idBoucle) return;
@@ -387,13 +396,13 @@ canvas{width:100%;aspect-ratio:16/9;background:#000;display:block;border:1px sol
       requestAnimationFrame(function () { self.tic(id); });
     }
     fin() {
-      this.arreterSons(); this.syncVideos(0, false); this.etat = 'arret'; this.majBoutons(); this.majTemps();
+      this.vu.arreter(); this.arreterSons(); this.syncVideos(0, false); this.etat = 'arret'; this.majBoutons(); this.majTemps();
       if (this.surFin) { var f = this.surFin; this.surFin = null; f(); }
     }
-    pause() { if (this.etat !== 'lecture') return; this.arreterSons(); this.clips.forEach(function (c) { if (c.genre === 'video') c.el.pause(); }); this.etat = 'pause'; this.majBoutons(); }
+    pause() { if (this.etat !== 'lecture') return; this.vu.arreter(); this.arreterSons(); this.clips.forEach(function (c) { if (c.genre === 'video') c.el.pause(); }); this.etat = 'pause'; this.majBoutons(); }
     arreter() {
       if (this.exportEnCours) return;
-      this.arreterSons(); this.clips.forEach(function (c) { if (c.genre === 'video') c.el.pause(); });
+      this.vu.arreter(); this.arreterSons(); this.clips.forEach(function (c) { if (c.genre === 'video') c.el.pause(); });
       this.etat = 'arret'; this.t = 0; this.syncVideos(0, false); this.rendre(0); this.majTemps(); this.majBoutons();
     }
     aller(t) {

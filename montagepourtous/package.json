@@ -1,0 +1,10 @@
+{
+  "name": "montagepourtous",
+  "version": "1.0.0",
+  "description": "MontagePourTous — outils de montage photos / vidéos / sons gratuits, avec compte utilisateur",
+  "main": "server.js",
+  "scripts": { "start": "node server.js", "dev": "node --watch server.js" },
+  "license": "MIT",
+  "dependencies": { "express": "^4.19.2" },
+  "engines": { "node": ">=18" }
+}

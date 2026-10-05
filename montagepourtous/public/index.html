@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MontagePourTous — montage photos, vidéos et sons</title>
+<meta name="description" content="Montez gratuitement vos photos, vidéos et sons : transitions, effets, bandes son. Dans votre navigateur, sans rien installer.">
+<script src="/js/theme.js"></script><link rel="stylesheet" href="/css/mpt.css"></head>
+<body>
+<header class="haut"><a class="logo" href="/">Montage<b>Pour</b>Tous</a><nav><button data-theme-toggle></button><a class="btn" href="/confidentialite.html">Confidentialité</a></nav></header>
+<main>
+<div class="hero">
+ <section>
+  <h1>Votre montage vidéo, simple et gratuit</h1>
+  <p>Enchaînez <b>photos, vidéos et textes</b> avec des fondus et des effets, ajoutez <b>une ou plusieurs bandes son</b> et enregistrez le tout en un seul fichier. Tout se passe dans votre navigateur : <b>vos fichiers ne quittent jamais votre appareil</b>.</p>
+  <div class="facade" aria-hidden="true"><div class="led" id="deco"></div></div>
+  <ul>
+   <li>Transitions : fondu, flash blanc, volet, cercle, glissement, zoom…</li>
+   <li>Effets : noir et blanc, sépia, vieux film, VHS, Super 8…</li>
+   <li>Boutons façon ampli des années 90, thème « sang » ou classique</li>
+   <li>Gratuit. Un compte est nécessaire (e-mail, prénom, nom).</li>
+  </ul>
+ </section>
+ <section class="carte" id="auth">
+  <div class="onglets" role="tablist"><button role="tab" id="t-ins" aria-selected="true">Créer un compte</button><button role="tab" id="t-con" aria-selected="false">Se connecter</button></div>
+  <form id="f-ins" novalidate>
+   <label for="i-prenom">Prénom *</label><input id="i-prenom" type="text" autocomplete="given-name" maxlength="80" required>
+   <label for="i-nom">Nom *</label><input id="i-nom" type="text" autocomplete="family-name" maxlength="80" required>
+   <label for="i-email">Adresse e-mail *</label><input id="i-email" type="email" autocomplete="email" maxlength="254" required>
+   <label for="i-mdp">Mot de passe * (8 caractères minimum)</label><input id="i-mdp" type="password" autocomplete="new-password" minlength="8" maxlength="200" required>
+   <label class="coche"><input type="checkbox" id="i-cons" required> <span>J'accepte que mon prénom, mon nom et mon e-mail soient enregistrés pour gérer mon compte (voir la <a href="/confidentialite.html" target="_blank">politique de confidentialité</a>). *</span></label>
+   <label class="coche"><input type="checkbox" id="i-news"> <span>Je souhaite recevoir des nouvelles de MontagePourTous (facultatif).</span></label>
+   <div class="err" id="e-ins" role="alert"></div>
+   <button class="plein" type="submit">Créer mon compte gratuit</button>
+  </form>
+  <form id="f-con" novalidate hidden>
+   <label for="c-email">Adresse e-mail</label><input id="c-email" type="email" autocomplete="email" required>
+   <label for="c-mdp">Mot de passe</label><input id="c-mdp" type="password" autocomplete="current-password" required>
+   <div class="err" id="e-con" role="alert"></div>
+   <button class="plein" type="submit">Se connecter</button>
+  </form>
+ </section>
+</div>
+</main>
+<footer>MontagePourTous — outil gratuit. Compatible Google Chrome (Chromebook, PC, Mac, Android). <a href="/confidentialite.html">Confidentialité</a></footer>
+<script src="/js/accueil.js"></script>
+</body></html>
