@@ -18,7 +18,7 @@
   const rnd = (a, b) => a + Math.random() * (b - a);
 
   /* ---------- Chronologie (secondes) ---------- */
-  const FADE_IN = 1.0, TOAST = [4.6, 5.2], LOWER = [6.6, 7.2], IRIS = [7.4, 8.8], END = 8.8, AUDIO_LEN = 9.6;
+  const FADE_IN = 1.0, TOAST = [4.6, 5.2], LOWER = [6.6, 7.2], IRIS = [7.4, 8.8], END = 8.8, AUDIO_LEN = 10.8;
   const LAUGH = [[3.2, 1], [5.5, 1.3], [6.0, 1.1]], CLINKS = [5.0, 5.13, 5.24];
 
   /* ---------- Mise en page ---------- */
@@ -227,32 +227,68 @@
   /* ---------- Sons : murmure de conversation lointaine (synthétisé) ---------- */
   let ac = null, master = null, noise = null, muted = false, mix = null, samples = {}, gotSamples = false;
   try { muted = localStorage.getItem('ccp-intro-mute') === '1'; } catch (e) {}
-  const VOW = [[730, 1090, 2440], [270, 2290, 3010], [300, 870, 2240], [530, 1840, 2480], [570, 840, 2410], [660, 1700, 2400]];   // a i ou é o è
-  function voice(c, dest, t0, dur, o) {                                          // une "personne" qui parle : voix + formants qui glissent par syllabes
-    const osc = c.createOscillator(); osc.type = 'sawtooth';
-    const out = c.createGain(); out.gain.value = 0.0001;
-    const fg = [1, 0.55, 0.28], fl = [0, 1, 2].map(i => { const f = c.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = [7, 9, 11][i]; const gn = c.createGain(); gn.gain.value = fg[i]; osc.connect(f); f.connect(gn); gn.connect(out); return f; });
-    out.connect(dest);
-    let t = t0 + rnd(0, 0.8), f0 = rnd(o.lo, o.hi); const end = t0 + dur; osc.frequency.setValueAtTime(f0, t0);
-    while (t < end) {
-      const phraseEnd = Math.min(end, t + rnd(0.9, 3.0)); let drift = rnd(-0.012, 0.004);
-      while (t < phraseEnd) {
-        const syl = rnd(0.13, 0.26), v = VOW[Math.random() * VOW.length | 0];
-        for (let i = 0; i < 3; i++) fl[i].frequency.setTargetAtTime(v[i] * rnd(0.94, 1.06), t, 0.03);
-        f0 *= 1 + drift + rnd(-0.05, 0.05); f0 = clamp(f0, o.lo * 0.8, o.hi * 1.2); osc.frequency.setTargetAtTime(f0, t, 0.04);
-        out.gain.setTargetAtTime(o.gain * rnd(0.55, 1), t, 0.02); out.gain.setTargetAtTime(o.gain * 0.1, t + syl * 0.68, 0.03);   // creux de consonne
-        t += syl;
-      }
-      if (Math.random() < 0.3) osc.frequency.setTargetAtTime(f0 * 1.14, t - 0.15, 0.06);    // fin de phrase montante, comme une question
-      out.gain.setTargetAtTime(0.0001, t, 0.05); t += rnd(0.25, 1.5); f0 = rnd(o.lo, o.hi);
-    }
-    osc.start(t0); osc.stop(end + 0.3);
+  /* ---------- Musique : composition originale de style biguine (libre de droits), instruments synthétisés ---------- */
+  const BPM = 112, SIX = 60 / BPM / 4;                                             // durée d'une double-croche (mesure à 2/4 = 8 doubles-croches)
+  const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
+  const CH = [ { b: 41, f: 48, g: [57, 60, 62, 65] },      // 0  Fa6
+               { b: 38, f: 45, g: [57, 60, 62, 66] },      // 1  Ré7
+               { b: 43, f: 50, g: [55, 58, 62, 65] },      // 2  Sol m7
+               { b: 48, f: 43, g: [55, 58, 60, 64] },      // 3  Do7
+               { b: 38, f: 45, g: [57, 60, 62, 65] } ];    // 4  Ré m7
+  const PROG = [0, 1, 2, 3, 0, 4, 2, 3];
+  const MEL = [   // [double-croche, note MIDI, durée, ornement]  g = broderie, s = glissé
+    [[0, 69, 2, 's'], [2, 72, 1], [3, 69, 1, 'g'], [4, 67, 2], [6, 65, 2, 'g']],
+    [[0, 69, 2, 'g'], [2, 74, 1], [3, 72, 1], [4, 69, 2, 's'], [6, 66, 2]],
+    [[0, 70, 2, 's'], [2, 74, 1], [3, 70, 1, 'g'], [4, 67, 2], [6, 65, 1], [7, 67, 1]],
+    [[0, 64, 2, 'g'], [2, 67, 1], [3, 70, 1], [4, 72, 4, 's']],
+    [[0, 72, 2, 's'], [2, 77, 1], [3, 76, 1, 'g'], [4, 74, 2], [6, 72, 2, 'g']],
+    [[0, 74, 2, 'g'], [2, 72, 1], [3, 69, 1], [4, 65, 2, 's'], [6, 69, 2]],
+    [[0, 70, 2, 's'], [2, 67, 2, 'g'], [4, 70, 1], [5, 72, 1, 'g'], [6, 74, 2]],
+    [[0, 72, 3, 's'], [3, 70, 1], [4, 69, 2, 'g'], [6, 65, 2]] ];
+  const kcache = new WeakMap();
+  function pluckBuf(c, midi, kind) {                                              // corde pincée (Karplus-Strong), mise en cache par note
+    let m = kcache.get(c); if (!m) kcache.set(c, m = new Map());
+    const key = kind + midi; if (m.has(key)) return m.get(key);
+    const sr = c.sampleRate, N = Math.max(2, Math.round(sr / mtof(midi))), len = Math.round(sr * (kind === 'bass' ? 0.9 : 0.75)), buf = c.createBuffer(1, len, sr), d = buf.getChannelData(0);
+    let prev = 0; const soft = kind === 'bass' ? 0.8 : 0.5; for (let i = 0; i < N; i++) { prev = prev * soft + (Math.random() * 2 - 1) * (1 - soft); d[i] = prev; }
+    const damp = kind === 'bass' ? 0.993 : 0.9965;
+    for (let i = N; i < len; i++) d[i] = damp * 0.5 * (d[i - N] + (i - N - 1 >= 0 ? d[i - N - 1] : d[i - N]));
+    let pk = 0; for (let i = 0; i < len; i++) pk = Math.max(pk, Math.abs(d[i])); for (let i = 0; i < len; i++) d[i] /= pk || 1;
+    m.set(key, buf); return buf;
   }
-  function laugh(c, dest, t0, vol) {
-    for (let i = 0; i < 4; i++) { const t = t0 + i * 0.17, osc = c.createOscillator(); osc.type = 'sawtooth'; osc.frequency.setValueAtTime(rnd(210, 260) * (1 + i * 0.03), t);
-      const f1 = c.createBiquadFilter(), f2 = c.createBiquadFilter(); f1.type = f2.type = 'bandpass'; f1.frequency.value = 750; f2.frequency.value = 1250; f1.Q.value = f2.Q.value = 6;
-      const gn = c.createGain(); gn.gain.setValueAtTime(0.0001, t); gn.gain.linearRampToValueAtTime(vol * (1 - i * 0.12), t + 0.025); gn.gain.exponentialRampToValueAtTime(0.0001, t + 0.13);
-      osc.connect(f1); osc.connect(f2); f1.connect(gn); f2.connect(gn); gn.connect(dest); osc.start(t); osc.stop(t + 0.16); }
+  function music(c, dest, t0) {
+    const out = c.createGain(); out.gain.value = 0.3; out.connect(dest);                                         // niveau de fond sonore
+    const bus = (v, f) => { const gn = c.createGain(); gn.gain.value = v; if (f) { const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = f; gn.connect(lp); lp.connect(out); } else gn.connect(out); return gn; };
+    const gtr = bus(0.2, 4200), bas = bus(0.34, 900), led = bus(0.2, 3000), prc = bus(0.16);
+    const hit = (b, t, buf, v) => { const src = c.createBufferSource(); src.buffer = buf; const gn = c.createGain(); gn.gain.value = v; src.connect(gn); gn.connect(b); src.start(t); };
+    const nz = (() => { const b = c.createBuffer(1, c.sampleRate, c.sampleRate), d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; return b; })();
+    const click = (t, f, q, v, dec) => { const src = c.createBufferSource(); src.buffer = nz; const fl = c.createBiquadFilter(); fl.type = 'bandpass'; fl.frequency.value = f; fl.Q.value = q; const gn = c.createGain();
+      gn.gain.setValueAtTime(0.0001, t); gn.gain.exponentialRampToValueAtTime(v, t + 0.002); gn.gain.exponentialRampToValueAtTime(0.0001, t + dec); src.connect(fl); fl.connect(gn); gn.connect(prc); src.start(t, Math.random() * 0.5); src.stop(t + dec + 0.02); };
+    const thud = (t, f0, f1, v, dec) => { const o = c.createOscillator(); o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dec * 0.7); const gn = c.createGain();
+      gn.gain.setValueAtTime(0.0001, t); gn.gain.exponentialRampToValueAtTime(v, t + 0.004); gn.gain.exponentialRampToValueAtTime(0.0001, t + dec); o.connect(gn); gn.connect(prc); o.start(t); o.stop(t + dec + 0.03); };
+    const wave = (() => { const re = new Float32Array(10), im = new Float32Array(10); [[1, 1], [3, 0.45], [5, 0.25], [7, 0.12], [9, 0.06]].forEach(([n, a]) => { im[n] = a; }); return c.createPeriodicWave(re, im); })();   // timbre de clarinette : harmoniques impairs
+    const lead = (t, midi, dur, v, orn) => {
+      const o = c.createOscillator(); o.setPeriodicWave(wave); const f = mtof(midi);
+      if (orn === 's') { o.frequency.setValueAtTime(f * 0.944, t); o.frequency.exponentialRampToValueAtTime(f, t + 0.07); } else o.frequency.value = f;       // glissé d'attaque
+      const lf = c.createOscillator(); lf.frequency.value = 5.4; const lg = c.createGain(); lg.gain.setValueAtTime(0.0001, t); lg.gain.linearRampToValueAtTime(f * 0.006, t + Math.min(0.35, dur * 0.7)); lf.connect(lg); lg.connect(o.frequency);   // vibrato qui s'installe
+      const gn = c.createGain(); gn.gain.setValueAtTime(0.0001, t); gn.gain.linearRampToValueAtTime(v, t + 0.03); gn.gain.setValueAtTime(v * 0.88, t + Math.max(0.05, dur - 0.09)); gn.gain.linearRampToValueAtTime(0.0001, t + dur);
+      o.connect(gn); gn.connect(led); o.start(t); lf.start(t); o.stop(t + dur + 0.02); lf.stop(t + dur + 0.02);
+      if (orn === 'g') { const o2 = c.createOscillator(); o2.setPeriodicWave(wave); o2.frequency.value = mtof(midi - 2); const g2 = c.createGain();   // note d'ornement juste avant
+        g2.gain.setValueAtTime(0.0001, t - 0.06); g2.gain.linearRampToValueAtTime(v * 0.6, t - 0.045); g2.gain.linearRampToValueAtTime(0.0001, t); o2.connect(g2); g2.connect(led); o2.start(t - 0.06); o2.stop(t + 0.01); } };
+    const strum = (ch, t, down, v) => { const notes = down ? ch.g : ch.g.slice().reverse(); notes.forEach((n, i) => hit(gtr, t + i * 0.009, pluckBuf(c, n, 'gtr'), v * (0.75 + 0.25 * (down ? i : 3 - i) / 3))); };
+    const bar = SIX * 8, nBars = 8;
+    for (let i = 0; i < nBars; i++) {
+      const ch = CH[PROG[i]], b0 = t0 + i * bar, at = (slot) => b0 + slot * SIX + (Math.random() - 0.5) * 0.008;
+      [[0, 1, 1], [2, 0, 0.55], [3, 1, 0.9], [5, 0, 0.55], [6, 1, 0.8]].forEach(([sl, dn, v]) => strum(ch, at(sl), !!dn, v));                 // guitare d'accompagnement syncopée
+      [[0, ch.b, 1], [3, ch.f, 0.7], [4, ch.b, 0.8], [6, ch.f, 0.6]].forEach(([sl, n, v]) => hit(bas, at(sl), pluckBuf(c, n, 'bass'), v));       // basse
+      [[0, 0.5], [3, 0.4], [4, 0.45], [6, 0.35]].forEach(([sl, v]) => { click(at(sl), 2600, 5, v, 0.03); thud(at(sl), 1500, 1300, v * 0.35, 0.025); });  // tibwa (bambou)
+      for (let sl = 0; sl < 8; sl++) click(b0 + sl * SIX, 8000, 1.2, [0.5, 0.2, 0.34, 0.2][sl % 4] * 0.9, 0.035);                              // chacha (maracas)
+      thud(at(0), 170, 105, 0.45, 0.13); thud(at(4), 280, 190, 0.32, 0.1);                                                                     // tanbou
+      const nx = CH[PROG[(i + 1) % nBars]]; hit(bas, at(7), pluckBuf(c, nx.b - 1, 'bass'), 0.42);                                               // approche chromatique de la basse
+      MEL[i].forEach(([sl, n, len, orn]) => lead(at(sl) + 0.004, n, len * SIX * 0.95, 0.5 + (sl % 4 === 3 ? 0.12 : 0), orn));
+    }
+    const tf = t0 + nBars * bar;                                                                                                                // dernier accord
+    strum(CH[0], tf, true, 1); hit(bas, tf, pluckBuf(c, 41, 'bass'), 1); lead(tf, 69, 1.4, 0.45, 's'); thud(tf, 170, 105, 0.4, 0.13);
   }
   function clink(c, dest, t, vol) {
     [[2900, 0.3, 0.55], [4400, 0.2, 0.38], [6300, 0.12, 0.26]].forEach(([f, a, d]) => { const o = c.createOscillator(); o.frequency.value = f * rnd(0.985, 1.015); const gn = c.createGain();
@@ -264,16 +300,11 @@
     o.connect(am); am.connect(gate); gate.connect(dest); o.start(t0); lfo.start(t0); o.stop(t0 + dur); lfo.stop(t0 + dur);
   }
   function ambience(c, dest, t0, dur, withVoices) {                              // tout le fond sonore
-    const LEVEL = 2.4, bus = c.createGain(), hp = c.createBiquadFilter(), lp = c.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 140; lp.type = 'lowpass'; lp.frequency.value = 2800; lp.Q.value = 0.5;
+    const LEVEL = 1, bus = c.createGain(), hp = c.createBiquadFilter(), lp = c.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 140; lp.type = 'lowpass'; lp.frequency.value = 2800; lp.Q.value = 0.5;
     bus.gain.value = LEVEL; bus.connect(hp); hp.connect(lp); lp.connect(dest);
     const dl = c.createDelay(0.5); dl.delayTime.value = 0.11; const fb = c.createGain(); fb.gain.value = 0.22; const wet = c.createGain(); wet.gain.value = 0.35;   // air libre : léger écho lointain
     const dlp = c.createBiquadFilter(); dlp.type = 'lowpass'; dlp.frequency.value = 1800; lp.connect(dl); dl.connect(dlp); dlp.connect(fb); fb.connect(dl); dlp.connect(wet); wet.connect(dest);
-    if (withVoices) {
-      [[88, 130, 0.05], [100, 150, 0.045], [170, 235, 0.05], [185, 255, 0.045], [195, 270, 0.04], [110, 160, 0.045], [250, 330, 0.03]].forEach(([lo, hi, gain]) => voice(c, bus, t0, dur, { lo, hi, gain }));
-      for (let t = t0 + 1; t < t0 + dur; t += rnd(1.2, 2.2)) { bus.gain.setTargetAtTime(LEVEL * rnd(0.7, 1.25), t, 0.5); }                         // la conversation monte et descend
-      LAUGH.forEach(([lt, a]) => laugh(c, bus, t0 + lt, 0.04 * a)); LAUGH.forEach(([lt, a]) => laugh(c, bus, t0 + lt + 0.2, 0.025 * a));
-      const nz = c.createBufferSource(); nz.buffer = noiseOf(c); nz.loop = true; const nf = c.createBiquadFilter(); nf.type = 'bandpass'; nf.frequency.value = 4200; nf.Q.value = 0.7; const ng = c.createGain(); ng.gain.value = 0.0025; nz.connect(nf); nf.connect(ng); ng.connect(bus); nz.start(t0); nz.stop(t0 + dur);   // souffle
-    }
+    if (withVoices) music(c, dest, t0 + 0.35);
     CLINKS.forEach((ct, i) => clink(c, bus, t0 + ct, 0.05 * (1 - i * 0.2)));
     crickets(c, bus, t0, dur);
   }
@@ -288,14 +319,14 @@
   }
   function loadSamples() {                                                       // vrais enregistrements facultatifs : "ambiance", "trinquer"
     if (!ac || gotSamples) return; gotSamples = true;
-    fetch('sounds/sons.json').then(r => r.ok ? r.json() : {}).then(map => Promise.all(['ambiance', 'trinquer'].filter(n => map[n]).map(n =>
+    fetch('sounds/sons.json').then(r => r.ok ? r.json() : {}).then(map => Promise.all(['musique', 'ambiance', 'trinquer'].filter(n => map[n]).map(n =>
       fetch('sounds/' + map[n]).then(r => r.arrayBuffer()).then(b => new Promise((ok, ko) => ac.decodeAudioData(b, ok, ko))).then(b => { samples[n] = b; }).catch(() => {})))).catch(() => {});
   }
   function startAudio() {
     if (!ac) return; const now = ac.currentTime + 0.05;
     mix = ac.createGain(); mix.gain.setValueAtTime(0.0001, now); mix.gain.linearRampToValueAtTime(1, now + 1.6); mix.gain.setValueAtTime(1, now + AUDIO_LEN - 1.8); mix.gain.linearRampToValueAtTime(0.0001, now + AUDIO_LEN); mix.connect(master);
-    if (samples.ambiance) {                                                      // vrai enregistrement de conversation : lu en boucle, bas
-      const src = ac.createBufferSource(); src.buffer = samples.ambiance; src.loop = true; const gn = ac.createGain(); gn.gain.value = 0.5; src.connect(gn); gn.connect(mix); src.start(now); src.stop(now + AUDIO_LEN + 0.2);
+    if (samples.musique || samples.ambiance) {                                   // vrai enregistrement (musique libre de droits) : lu en boucle
+      const src = ac.createBufferSource(); src.buffer = samples.musique || samples.ambiance; src.loop = true; const gn = ac.createGain(); gn.gain.value = 0.5; src.connect(gn); gn.connect(mix); src.start(now); src.stop(now + AUDIO_LEN + 0.2);
       ambience(ac, mix, now, AUDIO_LEN, false);
     } else ambience(ac, mix, now, AUDIO_LEN, true);
     if (samples.trinquer) { const src = ac.createBufferSource(); src.buffer = samples.trinquer; const gn = ac.createGain(); gn.gain.value = 0.5; src.connect(gn); gn.connect(mix); src.start(now + CLINKS[0]); }
@@ -339,13 +370,11 @@
   addEventListener('resize', () => { if (!box.hidden && running) layout(); });
   document.addEventListener('click', (e) => { const q = e.target.closest && e.target.closest('#quit-site'); if (q) { e.preventDefault(); play('quit'); } });
 
-  async function renderTest(secs) {                                              // mesure objective du murmure (hors ligne), pour les tests
-    const sr = 22050, oc = new OfflineAudioContext(1, sr * secs, sr), dest = oc.createGain(); dest.connect(oc.destination); ambience(oc, dest, 0, secs, true);
-    const d = (await oc.startRendering()).getChannelData(0); let sum = 0, pk = 0; for (let i = 0; i < d.length; i++) { sum += d[i] * d[i]; pk = Math.max(pk, Math.abs(d[i])); }
-    const win = Math.round(sr * 0.01), env = []; for (let i = 0; i + win < d.length; i += win) { let m = 0; for (let j = 0; j < win; j++) m += d[i + j] * d[i + j]; env.push(Math.sqrt(m / win)); }
-    const mean = env.reduce((a, b) => a + b, 0) / env.length; let best = 0, bf = 0;
-    for (let f = 1; f <= 12; f += 0.25) { let re = 0, im = 0; env.forEach((v, n) => { const a = -TAU * f * n * 0.01; re += (v - mean) * Math.cos(a); im += (v - mean) * Math.sin(a); }); const mg = Math.hypot(re, im); if (mg > best) { best = mg; bf = f; } }
-    return { rmsDb: +(20 * Math.log10(Math.sqrt(sum / d.length))).toFixed(1), crete: +pk.toFixed(3), modulationHz: bf };
+  async function renderTest(secs) {                                              // mesure objective de la musique (hors ligne), pour les tests
+    const sr = 22050, oc = new OfflineAudioContext(1, Math.round(sr * secs), sr), dest = oc.createGain(); dest.connect(oc.destination); ambience(oc, dest, 0, secs, true);
+    const d = (await oc.startRendering()).getChannelData(0); let sum = 0, pk = 0, nan = 0; for (let i = 0; i < d.length; i++) { if (d[i] !== d[i]) nan++; sum += d[i] * d[i]; pk = Math.max(pk, Math.abs(d[i])); }
+    const bar = SIX * 8 * sr, par = []; for (let m = 0; m < 9; m++) { let q = 0, n = 0; for (let i = Math.round(0.35 * sr + m * bar); i < 0.35 * sr + (m + 1) * bar && i < d.length; i++) { q += d[i] * d[i]; n++; } par.push(n ? +(10 * Math.log10(q / n + 1e-12)).toFixed(1) : null); }
+    return { bpm: BPM, rmsDb: +(20 * Math.log10(Math.sqrt(sum / d.length))).toFixed(1), crete: +pk.toFixed(2), nan, dbParMesure: par };
   }
   window.CCPOutro = { play, skip, back, renderTest, seek: (t) => { running = false; cancelAnimationFrame(raf); box.hidden = false; layout(); draw(t); } };
 })();

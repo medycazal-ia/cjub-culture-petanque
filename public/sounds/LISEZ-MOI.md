@@ -31,3 +31,14 @@ Deux sons supplémentaires, également facultatifs, dans `sons.json` :
 - `ambiance` : enregistrement d'une conversation conviviale au loin, **lu en boucle à faible volume** (30 à 60 s idéalement). Sans ce fichier, le site fabrique un murmure de conversation, mais **il ne peut pas reproduire du vrai créole martiniquais** : seul un vrai enregistrement le peut.
 - `trinquer` : bruit de verres qui trinquent.
 - **Enregistrer des personnes** (voix) suppose leur accord, surtout si le site est public. Prévenez les membres et gardez une trace de leur consentement.
+
+## Musique de la scène de fermeture
+
+Par défaut, la scène de fermeture joue une **mélodie originale de style biguine** (clarinette, guitare, basse, tibwa, chacha), composée pour ce site et donc libre de droits. Pour la remplacer par un vrai enregistrement, ajoutez dans `sons.json` :
+
+```json
+{ "musique": "ma-biguine.mp3" }
+```
+
+- Le fichier est lu en boucle, à volume réduit (≈ 10 s suffisent, la scène dure environ 9 s).
+- Vérifiez la **licence** : musique que vous possédez, domaine public, CC0, ou CC-BY avec mention de l'auteur. Évitez les morceaux d'artistes connus (droits d'auteur et droits voisins).
