@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Exemple d'intégration — Montage média simplifié</title></head>
+<body style="font-family:sans-serif;max-width:1100px;margin:1rem auto;padding:0 1rem">
+<h1>Ma page, mon site, mon code…</h1>
+
+<h2>Méthode 1 — balise (recommandée)</h2>
+<script src="montage-media-simplifie.js"></script>
+<montage-media-simplifie titre="Montage de mes médias" duree-image="4" resolution="1280x720" couleur="#c41e3a"></montage-media-simplifie>
+
+<h2>Méthode 2 — iframe (fonctionne partout, même sans toucher au code de la page)</h2>
+<iframe src="montage-media-simplifie.html" style="width:100%;height:900px;border:0" allow="autoplay; fullscreen" title="Montage média simplifié"></iframe>
+
+<script>
+  document.querySelector('montage-media-simplifie').addEventListener('montage-pret', function (e) {
+    console.log('Fichier fabriqué :', e.detail.nom, e.detail.type, e.detail.blob.size + ' octets');
+  });
+</script>
+</body></html>

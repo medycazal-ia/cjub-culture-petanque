@@ -1,0 +1,240 @@
+/*! montage-media-simplifie — outil de montage vidéo / audio / photos, sans installation, sans serveur.
+ *  Utilisation :  <script src="montage-media-simplifie.js"></script>  puis  <montage-media-simplifie></montage-media-simplifie>
+ *  Attributs : duree-image (secondes, défaut 5) · resolution (défaut "1280x720") · titre · couleur (défaut #c41e3a)
+ *  Événements : "montage-pret" (detail: {blob, nom, type}) quand un fichier unique a été fabriqué. */
+(function () {
+  'use strict';
+  if (window.customElements && customElements.get('montage-media-simplifie')) return;
+
+  var EXT = {
+    video: /\.(mp4|m4v|mov|webm|ogv|ogg|mkv|3gp|avi)$/i,
+    audio: /\.(mp3|wav|m4a|aac|flac|opus|oga|ogg|weba|wma|aif|aiff)$/i,
+    image: /\.(jpe?g|png|gif|webp|avif|bmp|svg|heic|ico)$/i
+  };
+  function genre(f) {
+    var t = f.type || '', n = f.name || '';
+    if (/^image\//.test(t)) return 'image';
+    if (/^video\//.test(t) && !(t === 'video/ogg' && EXT.audio.test(n) && !/\.ogv$/i.test(n))) return 'video';
+    if (/^audio\//.test(t)) return 'audio';
+    if (EXT.image.test(n)) return 'image';
+    if (/\.ogg$/i.test(n)) return 'audio';
+    if (EXT.video.test(n)) return 'video';
+    if (EXT.audio.test(n)) return 'audio';
+    return null;
+  }
+  function fmt(s) { s = Math.round(s); return Math.floor(s / 60) + ' min ' + ('0' + s % 60).slice(-2) + ' s'; }
+  function nom(f) { return f.replace(/\.[^.]+$/, ''); }
+
+  var CSS = '\
+:host{display:block;--mms-a:#c41e3a;font:16px/1.5 system-ui,Segoe UI,Roboto,Arial,sans-serif;color:#1a1a1a}\
+*{box-sizing:border-box}\
+.cadre{display:grid;grid-template-columns:minmax(280px,420px) 1fr;gap:1.2rem;background:#faf6f6;padding:1rem;border:1px solid rgba(0,0,0,.12)}\
+@media(max-width:820px){.cadre{grid-template-columns:1fr}}\
+h2{font-size:1.05rem;margin:.2rem 0 .5rem;color:var(--mms-a)}h1{font-size:1.3rem;margin:0 0 .8rem;color:var(--mms-a);grid-column:1/-1}\
+ol{list-style:none;margin:0;padding:0}\
+li{display:flex;align-items:center;gap:.4rem;background:#fff;border:1px solid rgba(0,0,0,.14);border-left:4px solid var(--mms-a);padding:.4rem .5rem;margin-bottom:.4rem}\
+li.actif{background:#fdeef0}li label{flex:1;display:flex;gap:.45rem;align-items:center;cursor:pointer;min-width:0}\
+li label .t{overflow-wrap:anywhere}.ico{font-size:1.1rem}\
+.dur{color:#555;font-size:.82rem;white-space:nowrap}.dur input{width:3.4rem;font:inherit;padding:.05rem .2rem}\
+button{font:inherit;cursor:pointer;border:2px solid var(--mms-a);background:#fff;color:var(--mms-a);padding:.35rem .8rem;border-radius:3px}\
+button:hover,button:focus-visible{background:var(--mms-a);color:#fff;outline:none}button.plein{background:var(--mms-a);color:#fff}button:disabled{opacity:.5;cursor:default}\
+button.petit{padding:.05rem .4rem;font-size:.85rem}\
+.barre{display:flex;flex-wrap:wrap;gap:.5rem;margin:.6rem 0}.note{color:#555;font-size:.88rem;margin:.3rem 0}\
+.depot{border:2px dashed var(--mms-a);padding:.9rem;text-align:center;background:#fff;margin-bottom:.8rem}.depot.sur{background:#fdeef0}\
+.scene{position:relative;background:#000;aspect-ratio:16/9;width:100%;overflow:hidden;border:1px solid rgba(0,0,0,.2)}\
+.scene video,.scene img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:none}\
+.scene.v video,.scene.i img{display:block}\
+.carte{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;color:#fff;text-align:center;padding:1rem;background:#111}\
+.scene.a .carte{display:flex}.carte b{font-size:3rem;display:block}\
+.scene.a video{display:block;opacity:0;pointer-events:none}\
+#etat{min-height:1.5em;font-weight:700;margin-top:.4rem}';
+
+  var HTML = '\
+<div class="cadre">\
+<h1 id="titre"></h1>\
+<section>\
+<h2>1. Ajoutez vos fichiers</h2>\
+<div class="depot" id="depot"><button class="plein" id="choisir">📂 Choisir des fichiers</button>\
+<p class="note">ou glissez-les ici : <b>vidéos</b> (mp4, webm, mov, m4v, ogv…), <b>sons</b> (mp3, wav, m4a, ogg, flac, opus…), <b>photos</b> (jpg, png, webp, gif, avif, bmp, svg…). Peu importe leur nom.</p>\
+<input type="file" id="fichiers" accept="video/*,audio/*,image/*,.mp4,.m4v,.mov,.webm,.ogv,.mp3,.wav,.m4a,.aac,.flac,.opus,.ogg,.jpg,.jpeg,.png,.gif,.webp,.avif,.bmp,.svg" multiple hidden></div>\
+<h2>2. Cochez et ordonnez</h2>\
+<p class="note">▲ ▼ pour l\'ordre, ✕ pour retirer. Pour une photo, réglez le temps d\'affichage (en secondes).</p>\
+<ol id="liste"></ol>\
+<div class="barre"><button id="tout">Tout cocher</button><button id="rien">Tout décocher</button><button id="lire" class="plein">▶ Lire la sélection</button></div>\
+<div class="barre"><button id="exporter">💾 Enregistrer en un seul fichier</button></div>\
+<p class="note" id="expetat" role="status"></p><p class="note" id="total"></p>\
+<p class="note">L\'enregistrement se fait <b>en direct</b> (durée de la sélection) : gardez cet onglet ouvert et visible. Le fichier se télécharge ensuite tout seul.</p>\
+</section>\
+<section><h2>3. Lecture</h2>\
+<div class="scene" id="scene"><video id="v" controls playsinline></video><img id="img" alt=""><div class="carte"><div><b>🎵</b><span id="cn"></span></div></div></div>\
+<div class="barre"><button id="prec">⏮ Précédent</button><button id="suiv">Suivant ⏭</button><button id="plein">⛶ Plein écran</button></div>\
+<div id="etat" role="status"></div></section></div>';
+
+  class MontageMediaSimplifie extends HTMLElement {
+    connectedCallback() {
+      if (this._ok) return; this._ok = true;
+      var r = this.attachShadow({ mode: 'open' });
+      r.innerHTML = '<style>' + CSS + '</style>' + HTML;
+      var $ = this.$ = function (id) { return r.getElementById(id); };
+      this.items = []; this.courant = -1; this.enExport = false; this.uid = 0; this.minuteur = null;
+      this.v = $('v'); this.img = $('img'); this.scene = $('scene');
+      var m = /^(\d+)x(\d+)$/.exec(this.getAttribute('resolution') || '1280x720');
+      this.W = m ? +m[1] : 1280; this.H = m ? +m[2] : 720;
+      this.dureeImage = Math.max(1, +this.getAttribute('duree-image') || 5);
+      this.style.setProperty('--mms-a', this.getAttribute('couleur') || '#c41e3a');
+      $('titre').textContent = this.getAttribute('titre') || 'Montage média simplifié';
+      var self = this;
+      $('choisir').onclick = function () { $('fichiers').click(); };
+      $('fichiers').onchange = function (e) { self.ajouter(e.target.files); e.target.value = ''; };
+      var dp = $('depot');
+      ['dragenter', 'dragover'].forEach(function (n) { dp.addEventListener(n, function (e) { e.preventDefault(); dp.className = 'depot sur'; }); });
+      ['dragleave', 'drop'].forEach(function (n) { dp.addEventListener(n, function (e) { e.preventDefault(); dp.className = 'depot'; }); });
+      dp.addEventListener('drop', function (e) { self.ajouter(e.dataTransfer.files); });
+      $('tout').onclick = function () { self.items.forEach(function (i) { i.coche = true; }); self.dessiner(); };
+      $('rien').onclick = function () { self.items.forEach(function (i) { i.coche = false; }); self.dessiner(); };
+      $('lire').onclick = function () { self.jouer(0); };
+      $('suiv').onclick = function () { self.jouer(self.courant < 0 ? 0 : self.courant + 1); };
+      $('prec').onclick = function () { self.jouer(Math.max(0, self.courant - 1)); };
+      $('plein').onclick = function () { var s = self.scene; (s.requestFullscreen || s.webkitRequestFullscreen || function () {}).call(s); };
+      $('exporter').onclick = function () { self.exporter(); };
+      this.v.addEventListener('ended', function () { if (self.courant >= 0 && !self.enExport) self.jouer(self.courant + 1); });
+      this.v.addEventListener('error', function () {
+        if (self.enExport || !self.v.getAttribute('src')) return;
+        $('etat').textContent = 'Ce fichier ne peut pas être lu par ce navigateur (format non géré). Essayez mp4/webm pour une vidéo, mp3/wav pour un son.';
+      });
+      this.dessiner();
+    }
+    /* ---- API publique ---- */
+    ajouter(fichiers) {
+      var self = this, ignores = [];
+      var l = Array.prototype.slice.call(fichiers).filter(function (f) { if (genre(f)) return true; ignores.push(f.name); return false; });
+      l.sort(function (a, b) { return a.name.localeCompare(b.name, 'fr', { numeric: true }); });
+      l.forEach(function (f) {
+        var it = { id: ++self.uid, genre: genre(f), titre: nom(f.name), url: URL.createObjectURL(f), sec: 0, coche: true };
+        if (it.genre === 'image') it.sec = self.dureeImage;
+        else {
+          var t = document.createElement(it.genre === 'audio' ? 'audio' : 'video'); t.preload = 'metadata';
+          t.onloadedmetadata = function () { it.sec = isFinite(t.duration) ? t.duration : 0; self.dessiner(); }; t.src = it.url;
+        }
+        self.items.push(it);
+      });
+      this.$('etat').textContent = ignores.length ? 'Ignoré (format non reconnu) : ' + ignores.join(', ') : '';
+      this.dessiner();
+    }
+    selection() { return this.items.filter(function (i) { return i.coche; }); }
+    /* ---- interface ---- */
+    dessiner() {
+      var self = this, ol = this.$('liste'); ol.innerHTML = '';
+      if (!this.items.length) ol.innerHTML = '<li><span class="note">Aucun fichier pour le moment.</span></li>';
+      var sel = this.selection();
+      this.items.forEach(function (it, i) {
+        var li = document.createElement('li'); if (self.courant >= 0 && sel[self.courant] === it) li.className = 'actif';
+        li.innerHTML = '<label><input type="checkbox"' + (it.coche ? ' checked' : '') + '><span class="ico">' + { video: '🎬', audio: '🎵', image: '🖼️' }[it.genre] + '</span><span class="t"></span></label>' +
+          '<span class="dur"></span><button class="petit" title="Monter" aria-label="Monter">▲</button><button class="petit" title="Descendre" aria-label="Descendre">▼</button><button class="petit" title="Voir seul">▶</button><button class="petit" title="Retirer" aria-label="Retirer">✕</button>';
+        li.querySelector('.t').textContent = it.titre;
+        var d = li.querySelector('.dur');
+        if (it.genre === 'image') {
+          d.innerHTML = '<input type="number" min="1" max="600" step="1" aria-label="Secondes">&nbsp;s';
+          var inp = d.querySelector('input'); inp.value = Math.round(it.sec);
+          inp.onchange = function () { it.sec = Math.min(600, Math.max(1, +inp.value || self.dureeImage)); self.total(); };
+        } else d.textContent = it.sec ? Math.round(it.sec) + ' s' : '';
+        li.querySelector('input[type=checkbox]').onchange = function (e) { it.coche = e.target.checked; self.total(); };
+        var b = li.querySelectorAll('button');
+        b[0].onclick = function () { if (i > 0) { self.items.splice(i - 1, 0, self.items.splice(i, 1)[0]); self.dessiner(); } };
+        b[1].onclick = function () { if (i < self.items.length - 1) { self.items.splice(i + 1, 0, self.items.splice(i, 1)[0]); self.dessiner(); } };
+        b[2].onclick = function () { self.courant = -1; self.montrer(it); };
+        b[3].onclick = function () { URL.revokeObjectURL(it.url); self.items.splice(i, 1); self.courant = -1; self.arreter(); self.dessiner(); };
+        ol.appendChild(li);
+      });
+      this.total();
+    }
+    total() {
+      var sel = this.selection(), t = sel.reduce(function (a, i) { return a + i.sec; }, 0);
+      this.$('total').textContent = sel.length + ' élément(s) sélectionné(s)' + (t ? ' — durée totale : ' + fmt(t) : '');
+    }
+    arreter() { clearTimeout(this.minuteur); this.v.pause(); this.v.removeAttribute('src'); this.v.load(); this.scene.className = 'scene'; }
+    montrer(it, onFin) {
+      var self = this; clearTimeout(this.minuteur);
+      this.$('etat').textContent = 'Lecture : ' + it.titre;
+      if (it.genre === 'image') {
+        this.v.pause(); this.img.src = it.url; this.scene.className = 'scene i';
+        if (onFin) this.minuteur = setTimeout(onFin, it.sec * 1000);
+      } else {
+        this.scene.className = 'scene ' + (it.genre === 'audio' ? 'a' : 'v'); this.$('cn').textContent = it.titre;
+        this.v.src = it.url; this.v.play().catch(function () {});
+      }
+    }
+    jouer(i) {
+      var self = this, sel = this.selection();
+      if (!sel.length) { this.$('etat').textContent = 'Ajoutez et cochez au moins un fichier.'; return; }
+      if (i < 0 || i >= sel.length) { this.courant = -1; this.$('etat').textContent = 'Fin de la sélection.'; this.dessiner(); return; }
+      this.courant = i; this.montrer(sel[i], function () { self.jouer(i + 1); }); this.dessiner();
+    }
+    /* ---- export en un seul fichier ---- */
+    formatEnreg() {
+      var l = ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm'];
+      for (var i = 0; i < l.length; i++) if (window.MediaRecorder && MediaRecorder.isTypeSupported(l[i])) return l[i];
+      return '';
+    }
+    ajuster(src, w, h) {
+      if (!w || !h) { w = this.W; h = this.H; }
+      var k = Math.min(this.W / w, this.H / h), dw = w * k, dh = h * k;
+      this.g.drawImage(src, (this.W - dw) / 2, (this.H - dh) / 2, dw, dh);
+    }
+    dessinerImage() {
+      var g = this.g, c = this.cour; if (!this.dessinActif) return;
+      g.fillStyle = '#000'; g.fillRect(0, 0, this.W, this.H);
+      try {
+        if (c.genre === 'video' && this.v.readyState >= 2) this.ajuster(this.v, this.v.videoWidth, this.v.videoHeight);
+        else if (c.genre === 'image') this.ajuster(c.el, c.el.naturalWidth, c.el.naturalHeight);
+        else if (c.genre === 'audio') {
+          g.fillStyle = '#111'; g.fillRect(0, 0, this.W, this.H); g.fillStyle = '#fff'; g.textAlign = 'center';
+          g.font = Math.round(this.H / 5) + 'px sans-serif'; g.fillText('🎵', this.W / 2, this.H / 2);
+          g.font = Math.round(this.H / 18) + 'px sans-serif'; g.fillText(c.titre, this.W / 2, this.H / 2 + this.H / 7, this.W * 0.9);
+        }
+      } catch (e) {}
+      var self = this; requestAnimationFrame(function () { self.dessinerImage(); });
+    }
+    async exporter() {
+      var self = this, et = this.$('expetat'), sel = this.selection(), v = this.v;
+      if (this.enExport) return;
+      if (!sel.length) { et.textContent = 'Ajoutez et cochez au moins un fichier.'; return; }
+      var mime = this.formatEnreg(), AC = window.AudioContext || window.webkitAudioContext;
+      if (!mime || !HTMLCanvasElement.prototype.captureStream || !AC) { et.textContent = 'Votre navigateur ne permet pas cet enregistrement : utilisez Google Chrome.'; return; }
+      this.enExport = true; this.courant = -1; this.arreter(); var bouton = this.$('exporter'); bouton.disabled = true;
+      var morceaux = [], rec = null;
+      try {
+        if (!this.cv) { this.cv = document.createElement('canvas'); this.cv.width = this.W; this.cv.height = this.H; this.g = this.cv.getContext('2d'); }
+        if (!this.ac) { this.ac = new AC(); var src = this.ac.createMediaElementSource(v); this.dest = this.ac.createMediaStreamDestination(); src.connect(this.dest); src.connect(this.ac.destination); }
+        await this.ac.resume();
+        v.controls = false; this.scene.className = 'scene v';
+        var flux = new MediaStream([this.cv.captureStream(30).getVideoTracks()[0], this.dest.stream.getAudioTracks()[0]]);
+        rec = new MediaRecorder(flux, { mimeType: mime, videoBitsPerSecond: 6000000, audioBitsPerSecond: 192000 });
+        rec.ondataavailable = function (e) { if (e.data && e.data.size) morceaux.push(e.data); };
+        var arret = new Promise(function (ok) { rec.onstop = ok; });
+        this.cour = { genre: 'image', el: new Image() }; this.dessinActif = true; this.dessinerImage(); rec.start(500);
+        for (var i = 0; i < sel.length; i++) {
+          var c = sel[i]; et.textContent = 'Enregistrement : ' + (i + 1) + ' sur ' + sel.length + ' (' + c.titre + '). Gardez cet onglet ouvert et visible.';
+          if (c.genre === 'image') {
+            var im = new Image(); im.src = c.url; await im.decode().catch(function () {}); c.el = im; this.cour = c;
+            await new Promise(function (ok) { setTimeout(ok, c.sec * 1000); });
+          } else {
+            v.src = c.url; await new Promise(function (ok, ko) { v.onloadeddata = ok; v.onerror = function () { ko(new Error('« ' + c.titre + ' » illisible')); }; v.load(); });
+            this.cour = c; var fin = new Promise(function (ok, ko) { v.onended = ok; v.onerror = function () { ko(new Error('« ' + c.titre + ' » illisible')); }; });
+            await v.play(); await fin;
+          }
+        }
+        await new Promise(function (ok) { setTimeout(ok, 400); });
+        this.dessinActif = false; rec.stop(); await arret;
+        var blob = new Blob(morceaux, { type: mime.split(';')[0] }), ext = mime.indexOf('mp4') >= 0 ? 'mp4' : 'webm', a = document.createElement('a');
+        a.href = URL.createObjectURL(blob); a.download = 'montage.' + ext; this.shadowRoot.appendChild(a); a.click(); a.remove();
+        et.textContent = 'Terminé : « ' + a.download + ' » téléchargé (dossier Téléchargements).';
+        this.dispatchEvent(new CustomEvent('montage-pret', { bubbles: true, composed: true, detail: { blob: blob, nom: a.download, type: blob.type } }));
+      } catch (e) {
+        this.dessinActif = false; try { if (rec && rec.state !== 'inactive') rec.stop(); } catch (x) {}
+        et.textContent = 'L\'enregistrement a échoué (' + e.message + '). Vous pouvez quand même projeter la sélection avec « Lire la sélection ».';
+      } finally { this.dessinActif = false; v.onended = v.onerror = v.onloadeddata = null; v.controls = true; this.enExport = false; bouton.disabled = false; }
+    }
+  }
+  customElements.define('montage-media-simplifie', MontageMediaSimplifie);
+})();
