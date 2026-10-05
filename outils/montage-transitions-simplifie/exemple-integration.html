@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Exemple d'intégration — Montage avec transitions</title></head>
+<body style="font-family:sans-serif;max-width:1200px;margin:1rem auto;padding:0 1rem">
+<h1>Ma page, mon site, mon code…</h1>
+<h2>Méthode 1 — balise (recommandée)</h2>
+<script src="montage-transitions-simplifie.js"></script>
+<montage-transitions-simplifie titre="Mon montage" resolution="1280x720" duree-image="5" duree-transition="1" couleur="#c41e3a"></montage-transitions-simplifie>
+<h2>Méthode 2 — iframe</h2>
+<iframe src="montage-transitions-simplifie.html" style="width:100%;height:1100px;border:0" allow="autoplay; fullscreen" title="Montage avec transitions"></iframe>
+<script>
+  document.querySelector('montage-transitions-simplifie').addEventListener('montage-pret', function (e) {
+    console.log('Fichier fabriqué :', e.detail.nom, e.detail.type, e.detail.blob.size + ' octets');
+  });
+</script>
+</body></html>
