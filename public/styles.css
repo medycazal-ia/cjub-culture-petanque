@@ -110,3 +110,14 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 .brand img{height:64px;width:64px}
 .hero img{width:110px}
 @media(max-width:800px){.nav{padding:.7rem 1rem}.brand{font-size:1.2rem;gap:.5rem}.brand img{height:46px;width:46px}nav{background:#f9f5f5}}
+
+/* Accueil : le titre se place sous le logo pulsant de La Trinité (fixe dans la carte de fond) */
+.hero{padding-top:max(3.5rem,calc(50vh - 253.5 * min(100vw / 1120, 100vh / 1327) - 70px))}
+
+/* Logo du club sur La Trinité : positionné sur la carte de fond (même échelle), zoom/dézoom */
+:root{--k:min(100vw / 1120, 100vh / 1327)}
+.map-logo{position:fixed;z-index:-1;pointer-events:none;border-radius:50%;object-fit:cover;opacity:.85;border:2px solid rgba(196,30,58,.45);
+  width:calc(110 * var(--k));height:calc(110 * var(--k));left:calc(50vw + 127.9 * var(--k));top:calc(50vh + -318.2 * var(--k));
+  transform:translate(-50%,-50%);animation:zoom 2.6s ease-in-out infinite}
+@keyframes zoom{0%,100%{transform:translate(-50%,-50%) scale(1)}50%{transform:translate(-50%,-50%) scale(1.18)}}
+.hero{background:linear-gradient(135deg,rgba(255,255,255,.25),rgba(245,230,232,.35))}
