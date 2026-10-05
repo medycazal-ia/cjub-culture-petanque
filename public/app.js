@@ -19,7 +19,7 @@ async function api(path, method = 'GET', body) {
   const res = await fetch('/api' + path, {
     method, headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) },
     body: body ? JSON.stringify(body) : undefined
-  });
+  }).catch(() => { throw new Error('Connexion impossible. Vérifiez votre réseau et réessayez.'); });
   const data = await res.json().catch(() => ({}));
   if (res.status === 401 && token && path.startsWith('/admin') ) logout();
   if (!res.ok) throw new Error(data.error || 'Erreur serveur');
@@ -314,3 +314,24 @@ $('#upload-form').onsubmit = async (e) => {
 /* ---------- Démarrage ---------- */
 route();
 loadAll().catch(() => toast('Impossible de charger les données.', true));
+
+/* ---------- Application installable (PWA) ---------- */
+let installEvent = null;
+addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); installEvent = e; $('#install-box').hidden = false; });
+$('#install-btn').onclick = async () => {
+  if (!installEvent) return;
+  installEvent.prompt(); await installEvent.userChoice.catch(() => {});
+  installEvent = null; $('#install-box').hidden = true;
+};
+addEventListener('appinstalled', () => { $('#install-box').hidden = true; toast('Application installée.'); });
+(() => { // iPhone / iPad : pas d'invite automatique, on explique le geste
+  const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+  if (/iphone|ipad|ipod/i.test(navigator.userAgent) && !standalone) {
+    $('#install-btn').hidden = true; $('#install-ios').hidden = false; $('#install-box').hidden = false;
+  }
+})();
+addEventListener('offline', () => toast('Vous êtes hors connexion : les dernières données consultées restent affichées.', true));
+addEventListener('online', () => { toast('Connexion rétablie.'); loadAll().catch(() => {}); });
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+  addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
+}

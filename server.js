@@ -14,7 +14,9 @@ const DB_FILE = path.join(__dirname, 'data', 'db.json');
 const UPLOAD_DIR = path.join(__dirname, 'data', 'uploads');
 
 app.use(express.json({ limit: '50kb' }));
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), {
+  setHeaders: (res, file) => { if (file.endsWith('sw.js')) res.set('Cache-Control', 'no-cache'); }
+}));
 
 /* ---------- Stockage JSON ---------- */
 const DEFAULTS = {

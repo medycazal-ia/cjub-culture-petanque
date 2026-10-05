@@ -121,3 +121,30 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
   transform:translate(-50%,-50%);animation:zoom 2.6s ease-in-out infinite}
 @keyframes zoom{0%,100%{transform:translate(-50%,-50%) scale(1)}50%{transform:translate(-50%,-50%) scale(1.18)}}
 .hero{background:linear-gradient(135deg,rgba(255,255,255,.25),rgba(245,230,232,.35))}
+
+/* Responsive : toutes tailles d'écran */
+.nav{padding-left:max(2rem,env(safe-area-inset-left));padding-right:max(2rem,env(safe-area-inset-right));padding-top:max(1rem,env(safe-area-inset-top))}
+.brand{font-size:clamp(1.2rem,2.6vw,1.9rem)}
+footer{padding-bottom:max(2rem,env(safe-area-inset-bottom))}
+#install-box{margin:.8rem 0 0}
+#install-ios{display:inline-block;max-width:42ch}
+@media(min-width:1800px){html{font-size:18px}.wrap{max-width:1300px}}
+@media(max-width:800px){
+  .nav{padding-left:max(1rem,env(safe-area-inset-left));padding-right:max(1rem,env(safe-area-inset-right));padding-top:max(.7rem,env(safe-area-inset-top))}
+  .wrap{padding:1.8rem 1rem}
+  .hero{padding-left:1rem;padding-right:1rem}
+  .event .row .btn.small{flex:1 1 auto}
+  .tabs button{padding:.7rem .8rem}
+}
+@media(max-height:520px){
+  .nav{position:static;padding-top:.5rem;padding-bottom:.5rem}
+  .brand img{height:44px;width:44px}
+  .hero{padding-top:2rem}
+}
+@media(pointer:coarse){
+  .btn,.btn.small,.tabs button,.burger{min-height:44px}
+  .burger{min-width:44px}
+  nav a{padding-top:.75rem;padding-bottom:.75rem}
+  input,select,textarea{min-height:44px;font-size:16px}
+  #lb-close{min-width:44px}
+}
