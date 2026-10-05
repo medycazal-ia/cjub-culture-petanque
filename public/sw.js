@@ -1,9 +1,9 @@
 'use strict';
 // Service worker : le site reste utilisable hors connexion avec les dernières données consultées.
 // Changer VERSION à chaque mise à jour des fichiers du site pour renouveler le cache.
-const VERSION = 'ccp-v3';
+const VERSION = 'ccp-v4';
 const STATIC = 'static-' + VERSION, API = 'api-' + VERSION;
-const SHELL = ['/', '/styles.css', '/app.js', '/intro.js', '/martinique.svg', '/logo.png', '/manifest.webmanifest', '/icons/icon-192.png'];
+const SHELL = ['/', '/styles.css', '/app.js', '/intro.js', '/outro.js', '/martinique.svg', '/logo.png', '/manifest.webmanifest', '/icons/icon-192.png'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(STATIC).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));

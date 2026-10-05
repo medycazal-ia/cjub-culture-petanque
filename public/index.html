@@ -139,7 +139,7 @@ if(ok){document.documentElement.classList.add('intro-on');setTimeout(function(){
 <footer>
   <p>© <span id="year"></span> <span data-s="clubName">Club Culture Pétanque</span> — <span data-s="address"></span></p>
   <p><a data-href="mailto:email" data-s="email"></a> · <a data-href="tel:phone" data-s="phone"></a> · <a data-href="facebook" target="_blank" rel="noopener">Facebook</a> · <a data-href="whatsapp" target="_blank" rel="noopener">WhatsApp</a></p>
-  <p><a href="#home" id="replay-intro">▶ Revoir l'animation d'accueil</a></p>
+  <p><a href="#home" id="replay-intro">▶ Revoir l'animation d'accueil</a> · <button class="btn small" id="quit-site" type="button">🚪 Quitter le site</button></p>
   <p id="install-box" hidden><button class="btn small" id="install-btn" type="button">📲 Installer l'application</button><span id="install-ios" hidden>Sur iPhone / iPad : touchez le bouton Partager, puis « Sur l'écran d'accueil ».</span></p>
 </footer>
 <div id="lightbox" hidden><button id="lb-close" class="btn small" aria-label="Fermer">✕</button><div id="lb-body"></div></div>
@@ -157,8 +157,19 @@ if(ok){document.documentElement.classList.add('intro-on');setTimeout(function(){
   </div>
   <button class="btn primary">Confirmer</button> <button type="button" class="btn" id="reg-cancel">Annuler</button>
 </form></div>
+<div id="outro" role="dialog" aria-label="Animation de fermeture du site" hidden>
+  <canvas id="outro-canvas" aria-hidden="true"></canvas>
+  <button class="intro-btn" id="outro-skip" type="button">Passer ▸</button>
+  <button class="intro-btn" id="outro-sound" type="button" hidden></button>
+  <div id="outro-card">
+    <span class="t1">À bientôt !</span><span class="t2" id="outro-msg">Merci de votre visite !</span>
+    <div class="outro-actions"><button class="btn primary" id="outro-back" type="button">Revenir au site</button> <button class="btn" id="outro-close" type="button">Fermer l'onglet</button></div>
+    <p class="note" id="outro-hint" hidden>Vous pouvez maintenant fermer cet onglet.</p>
+  </div>
+</div>
 <div id="toast" role="status"></div>
 <script src="intro.js"></script>
+<script src="outro.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

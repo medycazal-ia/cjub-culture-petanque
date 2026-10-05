@@ -162,7 +162,7 @@ function renderSettings() {
 /* ---------- Administration ---------- */
 const TABS = { events: 'Événements', gallery: 'Galerie', products: 'Produits', registrations: 'Inscriptions', members: 'Membres', guests: 'Invités', orders: 'Commandes', comments: 'Commentaires', settings: 'Paramètres' };
 function logout() { token = ''; sessionStorage.removeItem('adminToken'); adminData = null; showAdmin(); }
-$('#logout').onclick = logout;
+$('#logout').onclick = () => { logout(); if (window.CCPOutro) window.CCPOutro.play('logout'); };   // la scène de fermeture se joue à la déconnexion
 $('#login-form').onsubmit = async (e) => {
   e.preventDefault();
   const r = await act(() => api('/admin/login', 'POST', Object.fromEntries(new FormData(e.target))));
