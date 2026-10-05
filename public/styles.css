@@ -102,3 +102,11 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 #reg-box[hidden]{display:none!important}
 #reg-box form{width:100%;margin:auto}
 .event .row .btn.small{align-self:center}
+
+/* Bandeau : logo rond, nom du club, fond de la teinte de la carte */
+.nav{padding:1rem 2rem;background:#f9f5f5;gap:1.5rem}
+.brand{font-size:1.9rem;min-width:0;line-height:1.1}
+.brand img,.hero img{border-radius:50%;object-fit:cover}
+.brand img{height:64px;width:64px}
+.hero img{width:110px}
+@media(max-width:800px){.nav{padding:.7rem 1rem}.brand{font-size:1.2rem;gap:.5rem}.brand img{height:46px;width:46px}nav{background:#f9f5f5}}
