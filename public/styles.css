@@ -72,3 +72,7 @@ footer a{font-weight:600}
   .hero h1{font-size:2.2rem}
 }
 @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* Carte de la Martinique en fond de toutes les pages (logo sur La Trinité) */
+body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;background:url(martinique.svg) center/contain no-repeat}
+.hero{background:linear-gradient(135deg,rgba(255,255,255,.55),rgba(245,230,232,.55))}
