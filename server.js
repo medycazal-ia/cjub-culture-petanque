@@ -6,6 +6,8 @@ const path = require('path');
 const multer = require('multer');
 
 const app = express();
+app.disable('x-powered-by');
+app.set('trust proxy', 1); // derrière le proxy de l'hébergeur : vraie IP pour la limite de tentatives de connexion
 const PORT = process.env.PORT || 3000;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
 const DB_FILE = path.join(__dirname, 'data', 'db.json');
@@ -295,4 +297,5 @@ app.patch('/api/admin/settings', admin, (req, res) => {
 });
 
 app.use('/api', (_req, res) => res.status(404).json({ error: 'Route inconnue.' }));
+if (ADMIN_PASSWORD.length < 8) console.warn('ATTENTION : ADMIN_PASSWORD absent ou trop court (8 caractères minimum) : l\'espace admin est désactivé ou fragile.');
 app.listen(PORT, () => console.log(`Serveur démarré sur le port ${PORT}`));
