@@ -188,3 +188,9 @@ footer{padding-bottom:max(2rem,env(safe-area-inset-bottom))}
 #outro-sound{bottom:max(1rem,env(safe-area-inset-bottom));right:max(1rem,env(safe-area-inset-right))}
 #outro.closed #outro-skip,#outro.closed #outro-sound{display:none}
 #quit-site{margin-left:.3rem}
+
+/* Fin de l'animation d'accueil : la boule-logo se pose sur le logo de La Trinité, qui prend le relais */
+.intro-on .map-logo{opacity:0;animation:none}
+.intro-on.intro-landing .map-logo{opacity:.85;transition:opacity .4s ease;animation:zoom 2.6s ease-in-out infinite}
+#intro.out{transition:opacity .4s ease-in}
+#intro.opening .intro-btn{opacity:0;pointer-events:none;transition:opacity .3s}

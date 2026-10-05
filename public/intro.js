@@ -16,7 +16,7 @@
   const dirDown = (a) => ({ x: Math.sin(a), y: Math.cos(a) });   // 0 = vers le bas, + = vers l'avant (droite)
 
   /* ---------- Chronologie (secondes) ---------- */
-  const FADE_IN = 0.9, FLIGHT = 0.85, TITLE_AT = 4.0, SUN_OFF = [5.4, 6.6], OUT_AT = 5.8, END = 6.9;
+  const FADE_IN = 0.9, FLIGHT = 0.85, TITLE_AT = 4.0, OPEN0 = 4.9, SUN_OFF = [5.0, 6.4], OUT_AT = 6.2, END = 6.6;   // OPEN0 : la page s'ouvre autour de la boule-logo
   // t, angle du bras, flexion du coude, inclinaison du buste, flexion des genoux, tête
   const K = [
     [0.0, 0.06, 0.30, 0.30, 0.30, 0.30], [0.9, 0.06, 0.30, 0.30, 0.30, 0.30],
@@ -37,7 +37,7 @@
   const TI = TR + FLIGHT;                                                                        // instant du choc
 
   /* ---------- Mise en page ---------- */
-  let W, H, dpr, s, k, hy, gy, r, rs, rj, px, A0, J0, sx, SR, vA, tauC, R0, PI_, bgSky, bgLand, bgVig, motes, sparks, puffs, lastDraw = -1;
+  let B0, TGT, TRAD, SP0, SP1, W, H, dpr, s, k, hy, gy, r, rs, rj, px, A0, J0, sx, SR, vA, tauC, R0, PI_, bgSky, bgLand, bgVig, motes, sparks, puffs, lastDraw = -1;
   const mk = () => { const c = document.createElement('canvas'); c.width = Math.round(W * dpr); c.height = Math.round(H * dpr); const x = c.getContext('2d'); x.scale(dpr, dpr); return [c, x]; };
 
   function layout() {
@@ -54,7 +54,15 @@
     const dc = r + rs;                                                             // distance entre centres au contact
     R0 = held(pose(TR)); PI_ = { x: A0 - 0.878 * dc, y: gy - r - 0.479 * dc };
     buildBg(); buildFx();
+    // Ouverture : la boule-logo, au repos, ira se poser sur le logo de La Trinité de la page (cible), autour de laquelle la page s'ouvre
+    const S0 = posS(OPEN0, pose(OPEN0)), zc = camZoom(OPEN0);
+    B0 = { x: W / 2 + (S0.x - W / 2) * zc, y: H * 0.6 + (S0.y - H * 0.6) * zc, rad: S0.r * zc };                      // position écran de la boule au repos
+    const mr = logoEl ? logoEl.getBoundingClientRect() : null;
+    TGT = mr && mr.width > 0 ? { x: mr.left + mr.width / 2, y: mr.top + mr.height / 2 } : { x: W * 0.62, y: H * 0.28 };
+    TRAD = logoEl && parseFloat(getComputedStyle(logoEl).width) > 0 ? parseFloat(getComputedStyle(logoEl).width) / 2 : 0.55 * Math.min(W / 1120, H / 1327) * 100;
+    SP0 = S0.spin; SP1 = Math.ceil(SP0 / TAU) * TAU; if (SP1 - SP0 < 3) SP1 += TAU;                                  // il finit à l'endroit, comme le logo de la page
   }
+  const camZoom = (t) => 1 + 0.035 * Math.min(t / 5, 1);
 
   /* ---------- Décor (mis en cache) ---------- */
   function ridge(c, base, amp, freq, ph, col) {
@@ -200,14 +208,15 @@
   }
   const logoEl = document.querySelector('.map-logo');                               // le logo du club (déjà chargé dans la page)
   const logoReady = () => logoEl && logoEl.complete && logoEl.naturalWidth > 0;
-  function drawLogoDisc(x, y, rad, spin, L) {                                       // médaille ronde du club, qui tourne, éclairée à contre-jour
+  function drawLogoDisc(x, y, rad, spin, L, flat) {
+    const fl = 1 - (flat || 0);                                       // médaille ronde du club, qui tourne, éclairée à contre-jour
     g.save(); g.beginPath(); g.arc(x, y, rad, 0, TAU); g.clip(); g.translate(x, y); g.rotate(spin); g.drawImage(logoEl, -rad, -rad, 2 * rad, 2 * rad); g.restore();
-    let gr = g.createLinearGradient(x - rad, 0, x + rad, 0); gr.addColorStop(0, 'rgba(8,3,6,.42)'); gr.addColorStop(0.65, 'rgba(8,3,6,0)'); g.fillStyle = gr; g.beginPath(); g.arc(x, y, rad, 0, TAU); g.fill();
-    gr = g.createRadialGradient(x - rad * 0.2, y - rad * 0.15, rad * 0.3, x, y, rad); gr.addColorStop(0, 'rgba(8,3,6,0)'); gr.addColorStop(1, 'rgba(8,3,6,.5)'); g.fillStyle = gr; g.beginPath(); g.arc(x, y, rad, 0, TAU); g.fill();
-    g.strokeStyle = 'rgba(232,222,222,.92)'; g.lineWidth = Math.max(1.5, rad * 0.1); g.beginPath(); g.arc(x, y, rad * 0.95, 0, TAU); g.stroke();      // cerclage métallique : c'est toujours une boule
-    g.strokeStyle = `rgba(255,190,198,${0.9 * L})`; g.lineWidth = Math.max(1, rad * 0.14); g.lineCap = 'round'; g.beginPath(); g.arc(x, y, rad * 0.9, -0.95, 0.95); g.stroke();
-    const sp = g.createRadialGradient(x + rad * 0.62, y - rad * 0.05, 0, x + rad * 0.62, y - rad * 0.05, rad * 0.45); sp.addColorStop(0, `rgba(255,236,236,${0.9 * L})`); sp.addColorStop(1, 'rgba(255,200,205,0)');
-    g.fillStyle = sp; g.beginPath(); g.arc(x, y, rad, 0, TAU); g.fill(); g.strokeStyle = 'rgba(0,0,0,.55)'; g.lineWidth = 1; g.beginPath(); g.arc(x, y, rad, 0, TAU); g.stroke();
+    let gr = g.createLinearGradient(x - rad, 0, x + rad, 0); gr.addColorStop(0, `rgba(8,3,6,${0.42 * fl})`); gr.addColorStop(0.65, 'rgba(8,3,6,0)'); g.fillStyle = gr; g.beginPath(); g.arc(x, y, rad, 0, TAU); g.fill();
+    gr = g.createRadialGradient(x - rad * 0.2, y - rad * 0.15, rad * 0.3, x, y, rad); gr.addColorStop(0, 'rgba(8,3,6,0)'); gr.addColorStop(1, `rgba(8,3,6,${0.5 * fl})`); g.fillStyle = gr; g.beginPath(); g.arc(x, y, rad, 0, TAU); g.fill();
+    g.strokeStyle = `rgba(232,222,222,${0.92 * fl})`; g.lineWidth = Math.max(1.5, rad * 0.1); g.beginPath(); g.arc(x, y, rad * 0.95, 0, TAU); g.stroke();      // cerclage métallique : c'est toujours une boule
+    g.strokeStyle = `rgba(255,190,198,${0.9 * L * fl})`; g.lineWidth = Math.max(1, rad * 0.14); g.lineCap = 'round'; g.beginPath(); g.arc(x, y, rad * 0.9, -0.95, 0.95); g.stroke();
+    const sp = g.createRadialGradient(x + rad * 0.62, y - rad * 0.05, 0, x + rad * 0.62, y - rad * 0.05, rad * 0.45); sp.addColorStop(0, `rgba(255,236,236,${0.9 * L * fl})`); sp.addColorStop(1, 'rgba(255,200,205,0)');
+    g.fillStyle = sp; g.beginPath(); g.arc(x, y, rad, 0, TAU); g.fill(); g.strokeStyle = `rgba(0,0,0,${0.55 * fl})`; g.lineWidth = 1; g.beginPath(); g.arc(x, y, rad, 0, TAU); g.stroke();
   }
   function drawShooter(S, L) {                                                      // boule de chrome -> logo du club, en plein vol
     const m = logoReady() ? S.m : 0;
@@ -265,7 +274,9 @@
     g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, W, H);
     // caméra : lent travelling avant + secousse au choc
     const zoom = 1 + 0.035 * Math.min(t / 5, 1), ti = t - TI, sh = ti > 0 && ti < 0.4 ? 7 * s * Math.exp(-ti * 11) * Math.sin(ti * 90) : 0;
+    const open = t >= OPEN0, u = open ? smooth(clamp((t - OPEN0) / (OUT_AT - OPEN0), 0, 1)) : 0;
     g.translate(W / 2 + sh * 0.6, H * 0.6 + sh); g.scale(zoom, zoom); g.translate(-W / 2, -H * 0.6);
+    if (open) { const zo = 1 + 0.8 * u, ox = (B0.x - W / 2) / zoom + W / 2, oy = (B0.y - H * 0.6) / zoom + H * 0.6; g.translate(ox, oy); g.scale(zo, zo); g.translate(-ox, -oy); }   // le décor plonge vers la boule
     g.drawImage(bgSky, 0, 0, W, H);
     // soleil rouge clair, à moitié sous l'horizon
     g.save(); g.beginPath(); g.rect(0, 0, W, hy); g.clip();
@@ -286,10 +297,10 @@
     g.strokeStyle = `rgba(255,205,198,${0.5 * L})`; g.lineWidth = Math.max(1, 0.012 * k); g.beginPath(); g.ellipse(px + 0.02 * k, gy + 0.012 * k, 0.5 * k, 0.085 * k, 0, 0, TAU); g.stroke();
     // ombres
     const S = posS(t, P), A = posA(t), J = posJ(t);
-    drawPlayerShadow(P, L); ballShadow(A.x, A.y, r, L); ballShadow(J.x, J.y, rj, L, 0.7); if (!S.held) ballShadow(S.x, S.y, S.r, L);
+    drawPlayerShadow(P, L); ballShadow(A.x, A.y, r, L); ballShadow(J.x, J.y, rj, L, 0.7); if (open) ballShadow(S.x, S.y, S.r, L * (1 - smooth(clamp(u * 2.5, 0, 1)))); else if (!S.held) ballShadow(S.x, S.y, S.r, L);
     // acteurs
     drawBoule(A.x, A.y, r, A.spin, 'adv', L); drawBoule(J.x, J.y, rj, J.spin, 'jack', L);
-    drawPlayer(P, L); drawShooter(S, L);
+    drawPlayer(P, L); if (!open) drawShooter(S, L);
     // effets du choc
     const fx = { x: A0 - 0.85 * r, y: gy - 1.5 * r };
     if (ti > 0 && ti < 1.4) {
@@ -304,6 +315,14 @@
     g.fillStyle = `rgba(10,3,6,${(1 - L) * 0.9})`; g.fillRect(0, 0, W, H);        // tout s'éteint avec le soleil
     g.drawImage(bgVig, 0, 0, W, H);
     if (ti > 0 && ti < 0.18) { g.fillStyle = `rgba(255,225,215,${0.16 * (1 - ti / 0.18)})`; g.fillRect(0, 0, W, H); }
+    if (open) {                                                                     // la page s'ouvre autour de la boule, qui rejoint le logo de La Trinité
+      const q = 1 - u, bx = q * q * B0.x + 2 * q * u * ((B0.x + TGT.x) / 2) + u * u * TGT.x, by = q * q * B0.y + 2 * q * u * (Math.min(B0.y, TGT.y) - 0.28 * H) + u * u * TGT.y, brad = lerp(B0.rad, TRAD, u);
+      const R = brad * 1.3 + Math.hypot(W, H) * 1.2 * smooth(u), edge = Math.max(10, 0.04 * Math.min(W, H));
+      g.save(); g.globalCompositeOperation = 'destination-out'; const hole = g.createRadialGradient(bx, by, Math.max(0, R - edge), bx, by, R + edge); hole.addColorStop(0, 'rgba(0,0,0,1)'); hole.addColorStop(1, 'rgba(0,0,0,0)');
+      g.fillStyle = hole; g.beginPath(); g.arc(bx, by, R + edge, 0, TAU); g.fill(); g.restore();
+      if (u < 0.98) { g.save(); g.globalCompositeOperation = 'lighter'; g.strokeStyle = `rgba(255,190,198,${0.55 * (1 - u)})`; g.lineWidth = Math.max(2, 3 * s); g.beginPath(); g.arc(bx, by, R, 0, TAU); g.stroke(); g.restore(); }
+      drawLogoDisc(bx, by, brad, lerp(SP0, SP1, u), Math.max(L, 0.5), u);
+    }
   }
 
   /* ---------- Sons (synthétisés) ---------- */
@@ -383,20 +402,36 @@
 
   /* ---------- Boucle ---------- */
   let raf = 0, t0 = null, running = false, skipping = false, endTimer = 0;
+  const pageEls = () => [document.querySelector('.nav'), document.querySelector('main'), document.querySelector('footer')].filter(Boolean);
+  let rects = null;
+  function pageZoom(t) {                                                            // la page se dézoome autour du logo de La Trinité pendant qu'elle s'ouvre
+    const els = pageEls(); if (t < OPEN0) { if (rects) resetPage(); return; }
+    if (!rects) rects = els.map(e => { e.style.transform = ''; return e.getBoundingClientRect(); });
+    const u = smooth(clamp((t - OPEN0) / (OUT_AT - OPEN0), 0, 1)), z = 1.3 - 0.3 * u;
+    els.forEach((e, i) => { e.style.transformOrigin = (TGT.x - rects[i].left) + 'px ' + (TGT.y - rects[i].top) + 'px'; e.style.transform = u >= 1 ? '' : `scale(${z})`; });
+  }
+  function resetPage() { rects = null; pageEls().forEach(e => { e.style.transform = ''; e.style.transformOrigin = ''; }); }
+  function stage(t) {                                                              // états visuels de l'overlay selon l'instant
+    $title.classList.toggle('show', t >= TITLE_AT && t < OPEN0);
+    box.style.background = t >= OPEN0 ? 'transparent' : '';
+    box.classList.toggle('opening', t >= OPEN0 + 0.15);
+    root.classList.toggle('intro-landing', t >= OUT_AT);
+    if (!skipping) box.classList.toggle('out', t >= OUT_AT);
+    pageZoom(t);
+  }
   function frame(now) {
     if (!running) return;
     if (t0 === null) t0 = now;
     const t = (now - t0) / 1000;
     draw(t);
     if (ac) cues.forEach(([ct, fn], i) => { if (!fired[i] && t >= ct) { fired[i] = true; if (canPlay() && t - ct < 0.25) fn(); } });
-    if (t >= TITLE_AT && t < OUT_AT) $title.classList.add('show'); else if (t >= OUT_AT) $title.classList.remove('show');
-    if (t >= OUT_AT && !box.classList.contains('out')) box.classList.add('out');
+    stage(t);
     if (t >= END) return finish();
     raf = requestAnimationFrame(frame);
   }
   function finish() {
     running = false; cancelAnimationFrame(raf); clearTimeout(endTimer);
-    root.classList.remove('intro-on'); box.classList.remove('out'); $title.classList.remove('show');
+    root.classList.remove('intro-on', 'intro-landing'); box.classList.remove('out', 'opening'); box.style.background = ''; $title.classList.remove('show'); resetPage();
     if (master && ac) { try { master.gain.setTargetAtTime(0, ac.currentTime, 0.05); } catch (e) {} }
     window.scrollTo(0, 0);
   }
@@ -407,7 +442,7 @@
   }
   function play() {
     clearTimeout(endTimer); skipping = false; box.classList.remove('out'); box.style.transition = '';
-    root.classList.add('intro-on'); layout(); initAudio(); sndLabel(); fired = []; t0 = null; running = true;
+    window.scrollTo(0, 0); resetPage(); root.classList.remove('intro-landing'); root.classList.add('intro-on'); layout(); initAudio(); sndLabel(); fired = []; t0 = null; running = true;
     if (ac && master) master.gain.setValueAtTime(0.9, ac.currentTime);
     if (ac && ac.state !== 'running' && !muted) ac.resume().catch(() => {});
     try { sessionStorage.setItem('ccp-intro', '1'); } catch (e) {}
@@ -426,7 +461,7 @@
     const N = 2048, seg = d.slice(pi, pi + N); let num = 0, den = 0; for (let f = 1; f < N / 2; f += 2) { let re = 0, im = 0; for (let n = 0; n < N; n++) { const a = -TAU * f * n / N; re += seg[n] * Math.cos(a); im += seg[n] * Math.sin(a); } const mg = Math.hypot(re, im); num += mg * f * sr / N; den += mg; }
     return { pic: +pk.toFixed(2), dureeMs: Math.round(last * 1000), centroideHz: Math.round(num / den) };
   }
-  window.CCPIntro = { renderTest, play, skip, seek: (t) => { running = false; cancelAnimationFrame(raf); layout(); draw(t); $title.classList.toggle('show', t >= TITLE_AT && t < OUT_AT); } };   // seek : pour les tests visuels
+  window.CCPIntro = { renderTest, play, skip, seek: (t) => { running = false; cancelAnimationFrame(raf); resetPage(); layout(); draw(t); stage(t); } };   // seek : pour les tests visuels
 
   if (root.classList.contains('intro-on')) play();
 })();
