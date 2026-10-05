@@ -36,8 +36,9 @@ npm start                # http://localhost:3100
 - **Paiement réel** : renseigner dans l'admin les **liens de paiement** (Stripe « lien de paiement », PayPal…, en https://). Les paiements **ne sont pas détectés automatiquement** : vous les enregistrez à la main. Un branchement automatique (webhook Stripe) est une étape suivante. Encaisser des paiements suppose un statut légal (association, micro-entreprise…) et un prestataire de paiement : à voir avec votre comptable ; mentionner les conditions de vente.
 - **Données** : IP, jours d'usage et paiements sont conservés (obligations comptables) même si l'utilisateur supprime son compte ; la page de confidentialité le précise.
 
-## Mise en ligne
-Application Node.js autonome : héberger comme le site du club (voir `../DEPLOIEMENT_LWS.md`), avec les variables `PORT`, `MPT_ADMIN_PASSWORD`, `MPT_DATA_DIR`, et `MPT_TRUST_PROXY=1` derrière HTTPS. Utiliser un domaine/sous-domaine dédié.
+## Base de données et mise en ligne
+- **Stockage** : par défaut un fichier `data/db.json` ; si `MPT_DB_NAME` est défini, une **base MySQL/MariaDB** dédiée (tables `mpt_*` créées automatiquement, import automatique de l'ancien `db.json`).
+- **Installation pas à pas sur `montagepourtous.reine-cloud.fr` (LWS / cPanel)** : voir **`INSTALLATION-LWS.md`**. Sauvegarde de la base : `scripts/sauvegarde-mysql.sh`.
 
 ## Arborescence
 ```

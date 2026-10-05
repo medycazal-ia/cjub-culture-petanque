@@ -18,14 +18,13 @@ const MDP_PAR_DEFAUT = 'Admin-MPT-ChangezMoi-2026'; // mot de passe provisoire :
 const ADMIN = process.env.MPT_ADMIN_PASSWORD || MDP_PAR_DEFAUT;
 const ADMIN_PAR_DEFAUT = ADMIN === MDP_PAR_DEFAUT;
 const DATA = process.env.MPT_DATA_DIR || path.join(__dirname, 'data');
-const DB_FILE = path.join(DATA, 'db.json');
 const SESSION_JOURS = 30;
-fs.mkdirSync(DATA, { recursive: true });
 
-/* ---------- base de données (fichier JSON, écriture atomique) ---------- */
-let db = { users: [], sessions: [], seq: 0, personnes: [], seqP: 0, reglages: {} };
-try { db = Object.assign(db, JSON.parse(fs.readFileSync(DB_FILE, 'utf8'))); } catch (e) { /* première exécution */ }
-function sauver() { const tmp = DB_FILE + '.tmp'; fs.writeFileSync(tmp, JSON.stringify(db)); fs.renameSync(tmp, DB_FILE); }
+/* ---------- base de données : fichier JSON ou MySQL/MariaDB (voir stockage.js) ---------- */
+const S = require('./stockage');
+let db = S.vide(), pilote = null;
+const prete = S.ouvrir({ dossier: DATA, env: process.env }).then((r) => { db = r.db; pilote = r; return r; });
+function sauver() { return pilote ? pilote.sauver(db) : Promise.resolve(); }
 const sha = (x) => crypto.createHash('sha256').update(x).digest('hex');
 function purger() { const n = Date.now(); const avant = db.sessions.length; db.sessions = db.sessions.filter((s) => s.exp > n); if (db.sessions.length !== avant) sauver(); }
 
@@ -88,7 +87,7 @@ app.post('/api/inscription', limite('ins', 10, 3600e3), async (req, res) => {
     tel, nouvelles: b.nouvelles === true, derniereConnexion: null, nbConnexions: 0,
   };
   if (db.users.some((x) => x.email === email)) return res.status(409).json({ erreur: 'Un compte existe déjà avec cet e-mail. Connectez-vous.' });
-  db.users.push(u); ouvrirSession(req, res, u); res.status(201).json({ utilisateur: vue(u) });
+  db.users.push(u); ouvrirSession(req, res, u); await sauver(); res.status(201).json({ utilisateur: vue(u) });
 });
 
 app.post('/api/connexion', limite('con', 15, 900e3), async (req, res) => {
@@ -160,7 +159,7 @@ app.post('/api/admin/personnes/:id/abonnement', adminLimite, admin, (req, res) =
 app.post('/api/admin/personnes/:id/remise', adminLimite, admin, (req, res) => { const p = personneAdmin(req, res); if (!p) return; p.jours = 0; p.fenetreFin = 0; p.historique = []; sauver(); res.json(U.resume(db, p, Date.now())); });
 app.delete('/api/admin/personnes/:id', adminLimite, admin, (req, res) => { const id = +req.params.id; db.personnes = (db.personnes || []).filter((p) => p.id !== id); db.users.forEach((u) => { if (u.personneId === id) delete u.personneId; }); sauver(); res.json({ ok: true }); });
 
-app.get('/health', (req, res) => res.json({ ok: true }));
+app.get('/health', (req, res) => res.json({ ok: true, stockage: pilote ? pilote.type : 'démarrage' }));
 
 /* ---------- pages : public, et outils réservés aux comptes ---------- */
 app.use('/app', (req, res, next) => {
@@ -178,9 +177,12 @@ app.use('/app', (req, res, next) => {
 app.use(express.static(path.join(__dirname, 'public')));
 app.use((req, res) => res.status(404).send('Page introuvable'));
 
-if (require.main === module) {
-  if (ADMIN_PAR_DEFAUT) console.warn('⚠ Mot de passe administrateur PROVISOIRE en service (« ' + MDP_PAR_DEFAUT + ' ») : changez-le avec MPT_ADMIN_PASSWORD avant toute mise en ligne.');
-  if (ADMIN && ADMIN.length < 10) console.warn('⚠ MPT_ADMIN_PASSWORD fait moins de 10 caractères : espace administrateur désactivé.');
-  app.listen(PORT, () => console.log(`MontagePourTous : http://localhost:${PORT}`));
+if (!process.env.MPT_NO_LISTEN) { // (sous Passenger / cPanel, le fichier est chargé par un lanceur : on écoute toujours)
+  prete.then((r) => {
+    if (ADMIN_PAR_DEFAUT) console.warn('⚠ Mot de passe administrateur PROVISOIRE en service (« ' + MDP_PAR_DEFAUT + ' ») : changez-le avec MPT_ADMIN_PASSWORD avant toute mise en ligne.');
+    if (ADMIN && ADMIN.length < 10) console.warn('⚠ MPT_ADMIN_PASSWORD fait moins de 10 caractères : espace administrateur désactivé.');
+    app.listen(PORT, () => console.log(`MontagePourTous : http://localhost:${PORT} (stockage : ${r.type})`));
+    const fin = () => r.fermer().then(() => process.exit(0), () => process.exit(1)); process.on('SIGTERM', fin); process.on('SIGINT', fin);
+  }).catch((e) => { console.error('Démarrage impossible :', e.message); process.exit(1); });
 }
-module.exports = app;
+module.exports = app; module.exports.prete = prete;
