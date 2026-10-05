@@ -5,6 +5,7 @@ Chaque version est conservée sous un nom, pour pouvoir revenir exactement à ce
 | Version | Date | Contenu |
 |---|---|---|
 | **MVP** | 5 octobre 2026 | Première version complète. Voir ci-dessous. |
+| **v1** | 5 octobre 2026 | MVP + correctif : le message de confirmation ne dépasse plus en bas de page. |
 
 Les versions suivantes s'appelleront **v1**, **v2**, **v3**, etc.
 
