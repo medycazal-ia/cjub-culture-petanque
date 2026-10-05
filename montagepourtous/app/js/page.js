@@ -15,9 +15,11 @@
   });
   // Bandeau « usage » : messages du compteur, avec rappel de l'abonnement annuel et lien(s) de paiement.
   function el(t, c, x) { var e = document.createElement(t); if (c) e.className = c; if (x) e.textContent = x; return e; }
-  function lien(url, texte) { var a = el('a', 'btn plein', texte); a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer'; return a; }
-  api('GET', '/api/usage').then(function (j) {
+  function lien(url, texte) { var a = el('a', 'btn plein', texte + ' ↗'); a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.title = 'S\'ouvre dans un nouvel onglet : cette page reste ouverte'; return a; }
+  function majBandeau() { api('GET', '/api/usage').then(function (j) {
     if (!j || !j.messages) return;
+    var anc = document.querySelector('.bandeau'); if (anc) anc.remove();
+    if (!j.bloque && location.pathname === '/app/paiement.html') { location.href = '/app/'; return; } // paiement enregistré : retour aux outils
     var b = el('section', 'bandeau'); b.setAttribute('role', 'status');
     j.messages.forEach(function (m) { b.appendChild(el('p', 'msg ' + m.niveau, m.texte)); });
     var act = el('p', 'actions');
@@ -30,5 +32,8 @@
     if (act.children.length) b.appendChild(act);
     var m0 = document.querySelector('main'); if (m0) m0.insertBefore(b, m0.firstChild);
     if ($('usage')) { $('usage').textContent = 'Jours d\'usage : ' + j.joursUsage + (j.solde > 0 ? ' · solde à régler : ' + String(j.solde).replace('.', ',') + ' €' : '') + (j.abonnement ? ' · abonnement annuel actif' : ''); }
-  }).catch(function () {});
+  }).catch(function () {}); }
+  majBandeau();
+  var dernier = Date.now(); // au retour sur cet onglet (après un paiement fait dans l'autre onglet), on met à jour le message sans recharger la page ni perdre le montage
+  document.addEventListener('visibilitychange', function () { if (!document.hidden && Date.now() - dernier > 4000) { dernier = Date.now(); majBandeau(); } });
 })();

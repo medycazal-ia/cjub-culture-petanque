@@ -38,6 +38,6 @@
       'Option avantageuse : abonnement annuel ' + eu(t.prixAnnuel) + ', payable en une seule fois, usage illimité pendant 1 an.'
     ];
     ul.innerHTML = ''; l.forEach(function (x) { var li = document.createElement('li'); li.textContent = x; ul.appendChild(li); });
-    if (t.lienAnnuel) { var li2 = document.createElement('li'), a = document.createElement('a'); a.href = t.lienAnnuel; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.textContent = '⭐ Payer l\'abonnement annuel'; li2.appendChild(a); ul.appendChild(li2); }
+    if (t.lienAnnuel) { var li2 = document.createElement('li'), a = document.createElement('a'); a.href = t.lienAnnuel; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.textContent = '⭐ Payer l\'abonnement annuel ↗'; a.title = 'S\'ouvre dans un nouvel onglet'; li2.appendChild(a); ul.appendChild(li2); }
   }).catch(function () { ul.innerHTML = ''; });
 })();
