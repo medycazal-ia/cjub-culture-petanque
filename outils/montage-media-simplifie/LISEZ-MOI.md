@@ -13,7 +13,7 @@ Il assemble, dans l'ordre que vous choisissez, des **vidéos**, des **sons** et 
 Le nom des fichiers n'a aucune importance. Une photo s'affiche le nombre de secondes que vous réglez (5 s par défaut). Un son s'affiche sur un fond noir avec son titre.
 
 ## Utiliser seul
-Ouvrir `montage-media-simplifie.html` avec Chrome (double-clic). Ajouter les fichiers (bouton ou glisser-déposer), cocher, ordonner avec ▲ ▼, puis **Lire** ou **Enregistrer en un seul fichier**. L'enregistrement se fait en direct : garder l'onglet ouvert et visible.
+Ouvrir `montage-media-simplifie.html` avec Chrome (double-clic). Ajouter les fichiers (bouton ou glisser-déposer), cocher, ordonner avec ▲ ▼, puis **Lire** (le bouton devient **Pause** pendant la lecture, puis **Reprendre**; **Arrêter** remet à zéro) ou **Enregistrer en un seul fichier**. L'enregistrement se fait en direct : garder l'onglet ouvert et visible.
 
 ## L'intégrer dans un site ou un code (embed)
 **Méthode 1 — balise :** copier `montage-media-simplifie.js` sur votre site, puis :
