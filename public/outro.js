@@ -258,37 +258,52 @@
   }
   function music(c, dest, t0) {
     const out = c.createGain(); out.gain.value = 0.3; out.connect(dest);                                         // niveau de fond sonore
-    const bus = (v, f) => { const gn = c.createGain(); gn.gain.value = v; if (f) { const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = f; gn.connect(lp); lp.connect(out); } else gn.connect(out); return gn; };
-    const gtr = bus(0.2, 4200), bas = bus(0.34, 900), led = bus(0.2, 3000), prc = bus(0.16);
+    // Espace : petite réverbération de terrasse (réponse impulsionnelle synthétique, adoucie)
+    const ir = c.createBuffer(1, Math.round(c.sampleRate * 1.1), c.sampleRate), id = ir.getChannelData(0); let pv = 0;
+    for (let i = 0; i < id.length; i++) { const x = i / c.sampleRate; pv = pv * 0.55 + (Math.random() * 2 - 1) * 0.45; id[i] = pv * Math.exp(-x / 0.3) * (1 - Math.exp(-x / 0.012)); }
+    const rev = c.createConvolver(); rev.buffer = ir; const rwet = c.createGain(); rwet.gain.value = 0.32; out.connect(rev); rev.connect(rwet); rwet.connect(dest);
+    // Chaque instrument a sa place gauche/droite
+    const bus = (v, f, pan) => { const gn = c.createGain(); gn.gain.value = v; let tail = gn;
+      if (f) { const lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = f; tail.connect(lp); tail = lp; }
+      if (pan && c.createStereoPanner) { const pn = c.createStereoPanner(); pn.pan.value = pan; tail.connect(pn); tail = pn; }
+      tail.connect(out); return gn; };
+    const gtr = bus(0.2, 4200, -0.35), bas = bus(0.34, 900, 0), led = bus(0.2, 3000, 0.18), prc = bus(0.16, 0, 0.45);
     const hit = (b, t, buf, v) => { const src = c.createBufferSource(); src.buffer = buf; const gn = c.createGain(); gn.gain.value = v; src.connect(gn); gn.connect(b); src.start(t); };
     const nz = (() => { const b = c.createBuffer(1, c.sampleRate, c.sampleRate), d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; return b; })();
-    const click = (t, f, q, v, dec) => { const src = c.createBufferSource(); src.buffer = nz; const fl = c.createBiquadFilter(); fl.type = 'bandpass'; fl.frequency.value = f; fl.Q.value = q; const gn = c.createGain();
-      gn.gain.setValueAtTime(0.0001, t); gn.gain.exponentialRampToValueAtTime(v, t + 0.002); gn.gain.exponentialRampToValueAtTime(0.0001, t + dec); src.connect(fl); fl.connect(gn); gn.connect(prc); src.start(t, Math.random() * 0.5); src.stop(t + dec + 0.02); };
+    const click = (t, f, q, v, dec, bus2) => { const src = c.createBufferSource(); src.buffer = nz; const fl = c.createBiquadFilter(); fl.type = 'bandpass'; fl.frequency.value = f; fl.Q.value = q; const gn = c.createGain();
+      gn.gain.setValueAtTime(0.0001, t); gn.gain.exponentialRampToValueAtTime(Math.max(v, 0.0002), t + 0.002); gn.gain.exponentialRampToValueAtTime(0.0001, t + dec); src.connect(fl); fl.connect(gn); gn.connect(bus2 || prc); src.start(t, Math.random() * 0.5); src.stop(t + dec + 0.02); };
     const thud = (t, f0, f1, v, dec) => { const o = c.createOscillator(); o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dec * 0.7); const gn = c.createGain();
       gn.gain.setValueAtTime(0.0001, t); gn.gain.exponentialRampToValueAtTime(v, t + 0.004); gn.gain.exponentialRampToValueAtTime(0.0001, t + dec); o.connect(gn); gn.connect(prc); o.start(t); o.stop(t + dec + 0.03); };
     const wave = (() => { const re = new Float32Array(10), im = new Float32Array(10); [[1, 1], [3, 0.45], [5, 0.25], [7, 0.12], [9, 0.06]].forEach(([n, a]) => { im[n] = a; }); return c.createPeriodicWave(re, im); })();   // timbre de clarinette : harmoniques impairs
     const lead = (t, midi, dur, v, orn) => {
-      const o = c.createOscillator(); o.setPeriodicWave(wave); const f = mtof(midi);
+      const o = c.createOscillator(); o.setPeriodicWave(wave); const f = mtof(midi); o.detune.value = (Math.random() - 0.5) * 12;                         // légère instabilité de hauteur, comme un vrai souffle
       if (orn === 's') { o.frequency.setValueAtTime(f * 0.944, t); o.frequency.exponentialRampToValueAtTime(f, t + 0.07); } else o.frequency.value = f;       // glissé d'attaque
-      const lf = c.createOscillator(); lf.frequency.value = 5.4; const lg = c.createGain(); lg.gain.setValueAtTime(0.0001, t); lg.gain.linearRampToValueAtTime(f * 0.006, t + Math.min(0.35, dur * 0.7)); lf.connect(lg); lg.connect(o.frequency);   // vibrato qui s'installe
+      const lf = c.createOscillator(); lf.frequency.value = 5.2 + Math.random() * 0.5; const lg = c.createGain(); lg.gain.setValueAtTime(0.0001, t); lg.gain.linearRampToValueAtTime(f * 0.006, t + Math.min(0.35, dur * 0.7)); lf.connect(lg); lg.connect(o.frequency);   // vibrato qui s'installe
       const gn = c.createGain(); gn.gain.setValueAtTime(0.0001, t); gn.gain.linearRampToValueAtTime(v, t + 0.03); gn.gain.setValueAtTime(v * 0.88, t + Math.max(0.05, dur - 0.09)); gn.gain.linearRampToValueAtTime(0.0001, t + dur);
       o.connect(gn); gn.connect(led); o.start(t); lf.start(t); o.stop(t + dur + 0.02); lf.stop(t + dur + 0.02);
+      const br = c.createBufferSource(); br.buffer = nz; const bf = c.createBiquadFilter(); bf.type = 'bandpass'; bf.frequency.value = 2600; bf.Q.value = 0.9; const bg = c.createGain();   // souffle dans l'anche
+      bg.gain.setValueAtTime(0.0001, t); bg.gain.linearRampToValueAtTime(v * 0.07, t + 0.02); bg.gain.exponentialRampToValueAtTime(v * 0.025, t + 0.12); bg.gain.linearRampToValueAtTime(0.0001, t + dur);
+      br.connect(bf); bf.connect(bg); bg.connect(led); br.start(t, Math.random() * 0.5); br.stop(t + dur + 0.02);
       if (orn === 'g') { const o2 = c.createOscillator(); o2.setPeriodicWave(wave); o2.frequency.value = mtof(midi - 2); const g2 = c.createGain();   // note d'ornement juste avant
         g2.gain.setValueAtTime(0.0001, t - 0.06); g2.gain.linearRampToValueAtTime(v * 0.6, t - 0.045); g2.gain.linearRampToValueAtTime(0.0001, t); o2.connect(g2); g2.connect(led); o2.start(t - 0.06); o2.stop(t + 0.01); } };
     const strum = (ch, t, down, v) => { const notes = down ? ch.g : ch.g.slice().reverse(); notes.forEach((n, i) => hit(gtr, t + i * 0.009, pluckBuf(c, n, 'gtr'), v * (0.75 + 0.25 * (down ? i : 3 - i) / 3))); };
-    const bar = SIX * 8, nBars = 8;
+    // Phrasé : nuances qui montent vers le milieu, puis retombent ; la dernière mesure ralentit (ritardando)
+    const nBars = 8, bar = SIX * 8, VEL = [0.85, 0.9, 0.95, 1.0, 1.0, 1.06, 1.0, 0.9], STRETCH = [1, 1, 1, 1, 1, 1, 1.05, 1.14];
+    const starts = []; let acc = t0; for (let i = 0; i < nBars; i++) { starts.push(acc); acc += bar * STRETCH[i]; }
     for (let i = 0; i < nBars; i++) {
-      const ch = CH[PROG[i]], b0 = t0 + i * bar, at = (slot) => b0 + slot * SIX + (Math.random() - 0.5) * 0.008;
-      [[0, 1, 1], [2, 0, 0.55], [3, 1, 0.9], [5, 0, 0.55], [6, 1, 0.8]].forEach(([sl, dn, v]) => strum(ch, at(sl), !!dn, v));                 // guitare d'accompagnement syncopée
-      [[0, ch.b, 1], [3, ch.f, 0.7], [4, ch.b, 0.8], [6, ch.f, 0.6]].forEach(([sl, n, v]) => hit(bas, at(sl), pluckBuf(c, n, 'bass'), v));       // basse
+      const ch = CH[PROG[i]], b0 = starts[i], f = STRETCH[i], vel = VEL[i];
+      const at = (slot) => b0 + (slot + (slot % 2 ? 0.14 : 0)) * SIX * f + (Math.random() - 0.5) * 0.008;               // léger swing : les doubles-croches faibles sont un peu retardées
+      [[0, 1, 1], [2, 0, 0.55], [3, 1, 0.9], [5, 0, 0.55], [6, 1, 0.8]].forEach(([sl, dn, v]) => strum(ch, at(sl), !!dn, v * vel));         // guitare d'accompagnement syncopée
+      [[0, ch.b, 1], [3, ch.f, 0.7], [4, ch.b, 0.8], [6, ch.f, 0.6]].forEach(([sl, n, v]) => hit(bas, at(sl), pluckBuf(c, n, 'bass'), v * vel));   // basse
       [[0, 0.5], [3, 0.4], [4, 0.45], [6, 0.35]].forEach(([sl, v]) => { click(at(sl), 2600, 5, v, 0.03); thud(at(sl), 1500, 1300, v * 0.35, 0.025); });  // tibwa (bambou)
-      for (let sl = 0; sl < 8; sl++) click(b0 + sl * SIX, 8000, 1.2, [0.5, 0.2, 0.34, 0.2][sl % 4] * 0.9, 0.035);                              // chacha (maracas)
+      for (let sl = 0; sl < 8; sl++) click(at(sl), 8000, 1.2, [0.5, 0.2, 0.34, 0.2][sl % 4] * 0.9, 0.035);                                      // chacha (maracas)
       thud(at(0), 170, 105, 0.45, 0.13); thud(at(4), 280, 190, 0.32, 0.1);                                                                     // tanbou
-      const nx = CH[PROG[(i + 1) % nBars]]; hit(bas, at(7), pluckBuf(c, nx.b - 1, 'bass'), 0.42);                                               // approche chromatique de la basse
-      MEL[i].forEach(([sl, n, len, orn]) => lead(at(sl) + 0.004, n, len * SIX * 0.95, 0.5 + (sl % 4 === 3 ? 0.12 : 0), orn));
+      const nx = CH[PROG[(i + 1) % nBars]]; hit(bas, at(7), pluckBuf(c, nx.b - 1, 'bass'), 0.42 * vel);                                         // approche chromatique de la basse
+      MEL[i].forEach(([sl, n, len, orn]) => lead(at(sl) + 0.004, n, len * SIX * f * 0.95, (0.5 + (sl % 4 === 3 ? 0.12 : 0)) * vel, orn));
     }
-    const tf = t0 + nBars * bar;                                                                                                                // dernier accord
-    strum(CH[0], tf, true, 1); hit(bas, tf, pluckBuf(c, 41, 'bass'), 1); lead(tf, 69, 1.4, 0.45, 's'); thud(tf, 170, 105, 0.4, 0.13);
+    const tf = acc;                                                                                                                             // dernier accord
+    strum(CH[0], tf, true, 1); hit(bas, tf, pluckBuf(c, 41, 'bass'), 1); lead(tf, 69, 1.5, 0.45, 's'); thud(tf, 170, 105, 0.4, 0.13);
+    [0, 0.07].forEach((d, k2) => click(tf + d, 2600, 5, 0.4 - k2 * 0.1, 0.04));
   }
   function clink(c, dest, t, vol) {
     [[2900, 0.3, 0.55], [4400, 0.2, 0.38], [6300, 0.12, 0.26]].forEach(([f, a, d]) => { const o = c.createOscillator(); o.frequency.value = f * rnd(0.985, 1.015); const gn = c.createGain();
@@ -305,7 +320,7 @@
     const dl = c.createDelay(0.5); dl.delayTime.value = 0.11; const fb = c.createGain(); fb.gain.value = 0.22; const wet = c.createGain(); wet.gain.value = 0.35;   // air libre : léger écho lointain
     const dlp = c.createBiquadFilter(); dlp.type = 'lowpass'; dlp.frequency.value = 1800; lp.connect(dl); dl.connect(dlp); dlp.connect(fb); fb.connect(dl); dlp.connect(wet); wet.connect(dest);
     if (withVoices) music(c, dest, t0 + 0.35);
-    CLINKS.forEach((ct, i) => clink(c, bus, t0 + ct, 0.05 * (1 - i * 0.2)));
+    CLINKS.forEach((ct, i) => { if (t0 + ct >= c.currentTime) clink(c, bus, t0 + ct, 0.05 * (1 - i * 0.2)); });
     crickets(c, bus, t0, dur);
   }
   function noiseOf(c) { if (c === ac && noise) return noise; const b = c.createBuffer(1, c.sampleRate * 2, c.sampleRate), d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; return b; }
@@ -317,19 +332,30 @@
       ac = new AC(); const comp = ac.createDynamicsCompressor(); master = ac.createGain(); master.gain.value = muted ? 0 : 0.9; master.connect(comp); comp.connect(ac.destination); noise = noiseOf(ac); ac.onstatechange = sndLabel;
     } catch (e) { ac = null; }
   }
-  function loadSamples() {                                                       // vrais enregistrements facultatifs : "ambiance", "trinquer"
-    if (!ac || gotSamples) return; gotSamples = true;
-    fetch('sounds/sons.json').then(r => r.ok ? r.json() : {}).then(map => Promise.all(['musique', 'ambiance', 'trinquer'].filter(n => map[n]).map(n =>
-      fetch('sounds/' + map[n]).then(r => r.arrayBuffer()).then(b => new Promise((ok, ko) => ac.decodeAudioData(b, ok, ko))).then(b => { samples[n] = b; }).catch(() => {})))).catch(() => {});
+  // Vrais enregistrements (public/sounds/sons.json) : téléchargés à l'avance, décodés au moment de jouer.
+  const raw = {}; let prefetched = null;
+  const b64 = (u) => { const bin = atob(u.split(',')[1]), a = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) a[i] = bin.charCodeAt(i); return a.buffer; };
+  function prefetch() {
+    if (prefetched) return prefetched;
+    if (window.__DEMO_SOUNDS) { Object.keys(window.__DEMO_SOUNDS).forEach(n => { raw[n] = b64(window.__DEMO_SOUNDS[n]); }); return (prefetched = Promise.resolve()); }
+    prefetched = fetch('sounds/sons.json').then(res => res.ok ? res.json() : {}).then(map => Promise.all(['musique', 'ambiance', 'trinquer'].filter(n => map[n]).map(n =>
+      fetch('sounds/' + map[n]).then(res => res.arrayBuffer()).then(buf => { raw[n] = buf; }).catch(() => {})))).catch(() => {});
+    return prefetched;
   }
-  function startAudio() {
-    if (!ac) return; const now = ac.currentTime + 0.05;
-    mix = ac.createGain(); mix.gain.setValueAtTime(0.0001, now); mix.gain.linearRampToValueAtTime(1, now + 1.6); mix.gain.setValueAtTime(1, now + AUDIO_LEN - 1.8); mix.gain.linearRampToValueAtTime(0.0001, now + AUDIO_LEN); mix.connect(master);
-    if (samples.musique || samples.ambiance) {                                   // vrai enregistrement (musique libre de droits) : lu en boucle
-      const src = ac.createBufferSource(); src.buffer = samples.musique || samples.ambiance; src.loop = true; const gn = ac.createGain(); gn.gain.value = 0.5; src.connect(gn); gn.connect(mix); src.start(now); src.stop(now + AUDIO_LEN + 0.2);
-      ambience(ac, mix, now, AUDIO_LEN, false);
-    } else ambience(ac, mix, now, AUDIO_LEN, true);
-    if (samples.trinquer) { const src = ac.createBufferSource(); src.buffer = samples.trinquer; const gn = ac.createGain(); gn.gain.value = 0.5; src.connect(gn); gn.connect(mix); src.start(now + CLINKS[0]); }
+  async function decodeAll() {
+    await Promise.race([prefetch(), new Promise(ok => setTimeout(ok, 1500))]);
+    for (const n of Object.keys(raw)) if (!samples[n]) { try { samples[n] = await ac.decodeAudioData(raw[n].slice(0)); } catch (e) {} }
+  }
+  // late : secondes déjà écoulées dans la scène quand le son démarre (le morceau saute ce début pour rester calé sur l'image)
+  function startAudio(late) {
+    if (!ac) return; late = clamp(late || 0, 0, 1.6); const now = ac.currentTime + 0.05, t0s = now - late, end = now + AUDIO_LEN - late;
+    mix = ac.createGain(); mix.gain.setValueAtTime(0.0001, now); mix.gain.linearRampToValueAtTime(1, now + 1.6); mix.gain.setValueAtTime(1, end - 1.8); mix.gain.linearRampToValueAtTime(0.0001, end); mix.connect(master);
+    const mus = samples.musique || samples.ambiance;
+    if (mus) {                                                                   // vrai morceau (zouk) : un temps fort tombe à 5 s de scène, au moment du toast
+      const src = ac.createBufferSource(); src.buffer = mus; src.loop = true; const gn = ac.createGain(); gn.gain.value = 0.8; src.connect(gn); gn.connect(mix); src.start(now, late % mus.duration); src.stop(end + 0.2);
+      ambience(ac, mix, t0s, AUDIO_LEN, false);
+    } else ambience(ac, mix, t0s, AUDIO_LEN, true);                              // sinon : mélodie synthétisée
+    if (samples.trinquer && t0s + CLINKS[0] >= ac.currentTime) { const src = ac.createBufferSource(); src.buffer = samples.trinquer; const gn = ac.createGain(); gn.gain.value = 0.5; src.connect(gn); gn.connect(mix); src.start(t0s + CLINKS[0]); }
   }
   function sndLabel() {
     if (!ac) { $snd.hidden = true; return; } $snd.hidden = false;
@@ -344,7 +370,7 @@
   });
 
   /* ---------- Boucle ---------- */
-  let raf = 0, t0 = null, running = false, mode = 'quit';
+  let raf = 0, t0 = null, running = false, mode = 'quit', playId = 0;
   function showCard() {
     running = false; cancelAnimationFrame(raf); box.classList.add('closed');
     $msg.textContent = mode === 'logout' ? 'Vous êtes déconnecté. Merci de votre visite !' : 'Merci de votre visite !';
@@ -359,15 +385,17 @@
   function play(m) {
     mode = m || 'quit'; box.hidden = false; box.classList.remove('closed'); $hint.hidden = true; root.classList.add('outro-on');
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) { layout(); showCard(); return; }       // sans animation : on affiche directement le message
-    layout(); initAudio(); loadSamples(); sndLabel(); if (ac && ac.state !== 'running') ac.resume().catch(() => {});
-    if (ac) startAudio(); t0 = null; running = true; $skip.focus({ preventScroll: true }); raf = requestAnimationFrame(frame);
+    layout(); initAudio(); sndLabel(); if (ac && ac.state !== 'running') ac.resume().catch(() => {});
+    const id = ++playId, began = performance.now(); t0 = null; running = true; $skip.focus({ preventScroll: true }); raf = requestAnimationFrame(frame);
+    if (ac) decodeAll().then(() => { if (running && id === playId) startAudio((performance.now() - began) / 1000); });
   }
-  function skip() { if (!running) return; stopAudio(); showCard(); }
-  function back() { stopAudio(); running = false; cancelAnimationFrame(raf); box.hidden = true; box.classList.remove('closed'); root.classList.remove('outro-on'); window.scrollTo(0, 0); }
+  function skip() { if (!running) return; playId++; stopAudio(); showCard(); }
+  function back() { playId++; stopAudio(); running = false; cancelAnimationFrame(raf); box.hidden = true; box.classList.remove('closed'); root.classList.remove('outro-on'); window.scrollTo(0, 0); }
   $skip.addEventListener('click', skip); $back.addEventListener('click', back);
   $close.addEventListener('click', () => { window.close(); setTimeout(() => { $hint.hidden = false; }, 200); });   // ne fonctionne que si le navigateur l'autorise
   addEventListener('keydown', (e) => { if (!box.hidden && running && (e.key === 'Escape' || e.key === 'Enter')) skip(); else if (!box.hidden && !running && e.key === 'Escape') back(); });
   addEventListener('resize', () => { if (!box.hidden && running) layout(); });
+  addEventListener('load', () => setTimeout(prefetch, 1500));
   document.addEventListener('click', (e) => { const q = e.target.closest && e.target.closest('#quit-site'); if (q) { e.preventDefault(); play('quit'); } });
 
   async function renderTest(secs) {                                              // mesure objective de la musique (hors ligne), pour les tests

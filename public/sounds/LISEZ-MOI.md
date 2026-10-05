@@ -42,3 +42,7 @@ Par défaut, la scène de fermeture joue une **mélodie originale de style bigui
 
 - Le fichier est lu en boucle, à volume réduit (≈ 10 s suffisent, la scène dure environ 9 s).
 - Vérifiez la **licence** : musique que vous possédez, domaine public, CC0, ou CC-BY avec mention de l'auteur. Évitez les morceaux d'artistes connus (droits d'auteur et droits voisins).
+
+## Morceau actuellement utilisé
+
+`musique.mp3` est un extrait de 11 secondes du zouk instrumental **« No ritmo da maré »** (ronaldoreyz), pris à la reprise du thème, calé sur la mesure et ramené à un volume de fond sonore. Conservez la page de téléchargement d'origine et sa licence avec vos documents du club. Pour changer de morceau, remplacez ce fichier (même nom, ≈ 11 s).
