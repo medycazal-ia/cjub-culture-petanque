@@ -6,6 +6,7 @@
 <main><div class="carte"><h1>Administration</h1>
 <form id="f" novalidate><label for="mdp">Mot de passe administrateur</label><input id="mdp" type="password" autocomplete="current-password"><div class="err" id="err" role="alert"></div><button class="plein" type="submit">Afficher les inscrits</button></form>
 <div id="zone" hidden>
+ <p class="err" id="defaut" hidden>⚠ Vous utilisez le mot de passe administrateur provisoire. Changez-le (variable MPT_ADMIN_PASSWORD) avant la mise en ligne.</p>
  <p><b id="total"></b> inscrit(s). <button id="csv" class="plein">⬇ Exporter en CSV (Excel)</button></p>
  <div style="overflow:auto"><table><thead><tr><th>Prénom</th><th>Nom</th><th>E-mail</th><th>Nouvelles</th><th>Inscrit le</th><th>Dernière connexion</th><th>Connexions</th><th></th></tr></thead><tbody id="corps"></tbody></table></div>
 </div></div></main>

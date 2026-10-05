@@ -13,7 +13,9 @@ try { // .env facultatif, sans dépendance
 } catch (e) { /* pas de .env */ }
 
 const PORT = +process.env.PORT || 3100;
-const ADMIN = process.env.MPT_ADMIN_PASSWORD || '';
+const MDP_PAR_DEFAUT = 'Admin-MPT-ChangezMoi-2026'; // mot de passe provisoire : à remplacer via MPT_ADMIN_PASSWORD (voir LISEZ-MOI.md)
+const ADMIN = process.env.MPT_ADMIN_PASSWORD || MDP_PAR_DEFAUT;
+const ADMIN_PAR_DEFAUT = ADMIN === MDP_PAR_DEFAUT;
 const DATA = process.env.MPT_DATA_DIR || path.join(__dirname, 'data');
 const DB_FILE = path.join(DATA, 'db.json');
 const SESSION_JOURS = 30;
@@ -116,7 +118,7 @@ function admin(req, res, next) {
 }
 const adminLimite = limite('adm', 20, 900e3);
 const ligne = (u) => ({ id: u.id, email: u.email, prenom: u.prenom, nom: u.nom, nouvelles: !!u.nouvelles, creeLe: u.creeLe, consentementLe: u.consentementLe, derniereConnexion: u.derniereConnexion, nbConnexions: u.nbConnexions || 0 });
-app.get('/api/admin/utilisateurs', adminLimite, admin, (req, res) => res.json({ total: db.users.length, utilisateurs: db.users.map(ligne) }));
+app.get('/api/admin/utilisateurs', adminLimite, admin, (req, res) => res.json({ total: db.users.length, utilisateurs: db.users.map(ligne), motDePasseParDefaut: ADMIN_PAR_DEFAUT }));
 app.delete('/api/admin/utilisateurs/:id', adminLimite, admin, (req, res) => {
   const id = +req.params.id, n = db.users.length; db.users = db.users.filter((u) => u.id !== id); db.sessions = db.sessions.filter((s) => s.uid !== id); sauver();
   res.json({ supprime: n - db.users.length });
@@ -140,6 +142,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use((req, res) => res.status(404).send('Page introuvable'));
 
 if (require.main === module) {
+  if (ADMIN_PAR_DEFAUT) console.warn('⚠ Mot de passe administrateur PROVISOIRE en service (« ' + MDP_PAR_DEFAUT + ' ») : changez-le avec MPT_ADMIN_PASSWORD avant toute mise en ligne.');
   if (ADMIN && ADMIN.length < 10) console.warn('⚠ MPT_ADMIN_PASSWORD fait moins de 10 caractères : espace administrateur désactivé.');
   app.listen(PORT, () => console.log(`MontagePourTous : http://localhost:${PORT}`));
 }

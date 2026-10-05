@@ -11,14 +11,14 @@ Outils gratuits de **montage photos / vidéos / sons**, avec **compte utilisateu
 ```bash
 cd montagepourtous
 npm install
-cp .env.example .env     # puis renseigner MPT_ADMIN_PASSWORD (10 caractères minimum)
+cp .env.example .env     # puis changer MPT_ADMIN_PASSWORD (10 caractères minimum)
 npm start                # http://localhost:3100
 ```
 
 ## Comptes et données collectées
 - Inscription : prénom, nom, e-mail, mot de passe (haché avec scrypt, jamais stocké en clair), **case de consentement obligatoire** + case « nouvelles » facultative. Date de création/consentement, dernière connexion, nombre de connexions.
 - Les outils (`/app/…`) ne sont accessibles qu'aux comptes connectés (cookie de session `HttpOnly`, 30 jours).
-- **Espace admin** : `/admin.html` (mot de passe `MPT_ADMIN_PASSWORD`) : liste des inscrits, export **CSV** (ouvrable dans Excel), suppression d'un inscrit.
+- **Espace admin** : `/admin.html`. Mot de passe **provisoire** : `Admin-MPT-ChangezMoi-2026` (valeur par défaut si rien n'est défini ; elle est visible dans le dépôt, donc **à changer** en définissant `MPT_ADMIN_PASSWORD` dans `.env` ou chez l'hébergeur ; un bandeau rouge le rappelle tant qu'il n'est pas changé) : liste des inscrits, export **CSV** (ouvrable dans Excel), suppression d'un inscrit.
 - L'utilisateur peut **supprimer son compte** et retirer son accord aux nouvelles depuis « Mes outils ».
 - Données dans `data/db.json` (hors dépôt Git). **À sauvegarder régulièrement** (copier ce fichier).
 - `public/confidentialite.html` est un modèle : **compléter le nom et les coordonnées de l'éditeur** avant l'ouverture au public. La collecte de données personnelles impose en France/UE d'informer les inscrits (RGPD) : à faire valider si besoin.

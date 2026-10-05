@@ -4,7 +4,7 @@
   function date(s) { return s ? new Date(s).toLocaleString('fr-FR') : '—'; }
   function charger() {
     return fetch('/api/admin/utilisateurs', { headers: h() }).then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.erreur || 'Erreur'); return j; }); }).then(function (j) {
-      $('total').textContent = j.total; var tb = $('corps'); tb.innerHTML = '';
+      $('total').textContent = j.total; $('defaut').hidden = !j.motDePasseParDefaut; var tb = $('corps'); tb.innerHTML = '';
       j.utilisateurs.forEach(function (u) {
         var tr = document.createElement('tr');
         [u.prenom, u.nom, u.email, u.nouvelles ? 'oui' : 'non', date(u.creeLe), date(u.derniereConnexion), u.nbConnexions].forEach(function (v) { var td = document.createElement('td'); td.textContent = v; tr.appendChild(td); });
