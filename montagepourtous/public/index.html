@@ -15,8 +15,9 @@
    <li>Transitions : fondu, flash blanc, volet, cercle, glissement, zoom…</li>
    <li>Effets : noir et blanc, sépia, vieux film, VHS, Super 8…</li>
    <li>Boutons façon ampli des années 90, thème « sang » ou classique</li>
-   <li>Gratuit. Un compte est nécessaire (e-mail, prénom, nom).</li>
+   <li>Un compte est nécessaire (e-mail, prénom, nom).</li>
   </ul>
+  <div class="carte tarifs"><h2 style="margin-top:0">Tarifs</h2><ul id="tarifs"><li>Chargement…</li></ul></div>
  </section>
  <section class="carte" id="auth">
   <div class="onglets" role="tablist"><button role="tab" id="t-ins" aria-selected="true">Créer un compte</button><button role="tab" id="t-con" aria-selected="false">Se connecter</button></div>
@@ -24,8 +25,9 @@
    <label for="i-prenom">Prénom *</label><input id="i-prenom" type="text" autocomplete="given-name" maxlength="80" required>
    <label for="i-nom">Nom *</label><input id="i-nom" type="text" autocomplete="family-name" maxlength="80" required>
    <label for="i-email">Adresse e-mail *</label><input id="i-email" type="email" autocomplete="email" maxlength="254" required>
+   <label for="i-tel">Téléphone (facultatif)</label><input id="i-tel" type="text" inputmode="tel" autocomplete="tel" maxlength="30">
    <label for="i-mdp">Mot de passe * (8 caractères minimum)</label><input id="i-mdp" type="password" autocomplete="new-password" minlength="8" maxlength="200" required>
-   <label class="coche"><input type="checkbox" id="i-cons" required> <span>J'accepte que mon prénom, mon nom et mon e-mail soient enregistrés pour gérer mon compte (voir la <a href="/confidentialite.html" target="_blank">politique de confidentialité</a>). *</span></label>
+   <label class="coche"><input type="checkbox" id="i-cons" required> <span>J'accepte que mon prénom, mon nom, mon e-mail (et mon téléphone si je le donne) soient enregistrés, ainsi que mon adresse IP et mes jours d'utilisation, pour gérer mon compte et la facturation des jours d'usage (voir les tarifs ci-contre et la <a href="/confidentialite.html" target="_blank">politique de confidentialité</a>). *</span></label>
    <label class="coche"><input type="checkbox" id="i-news"> <span>Je souhaite recevoir des nouvelles de MontagePourTous (facultatif).</span></label>
    <div class="err" id="e-ins" role="alert"></div>
    <button class="plein" type="submit">Créer mon compte gratuit</button>

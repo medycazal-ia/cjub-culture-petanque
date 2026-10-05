@@ -4,10 +4,50 @@
 <script src="/js/theme.js"></script><link rel="stylesheet" href="/css/mpt.css"></head>
 <body><header class="haut"><a class="logo" href="/"><span class="clap" aria-hidden="true"></span>Montage<b>Pour</b>Tous</a><nav><button data-theme-toggle></button></nav></header>
 <main><div class="carte"><h1>Administration</h1>
-<form id="f" novalidate><label for="mdp">Mot de passe administrateur</label><input id="mdp" type="password" autocomplete="current-password"><div class="err" id="err" role="alert"></div><button class="plein" type="submit">Afficher les inscrits</button></form>
+<form id="f" novalidate><label for="mdp">Mot de passe administrateur</label><input id="mdp" type="password" autocomplete="current-password"><div class="err" id="err" role="alert"></div><button class="plein" type="submit">Entrer</button></form>
 <div id="zone" hidden>
  <p class="err" id="defaut" hidden>⚠ Vous utilisez le mot de passe administrateur provisoire. Changez-le (variable MPT_ADMIN_PASSWORD) avant la mise en ligne.</p>
- <p><b id="total"></b> inscrit(s). <button id="csv" class="plein">⬇ Exporter en CSV (Excel)</button></p>
- <div style="overflow:auto"><table><thead><tr><th>Prénom</th><th>Nom</th><th>E-mail</th><th>Nouvelles</th><th>Inscrit le</th><th>Dernière connexion</th><th>Connexions</th><th></th></tr></thead><tbody id="corps"></tbody></table></div>
+ <div class="onglets2" role="tablist"><button id="o-ins" role="tab" aria-selected="true">👥 Inscrits</button><button id="o-usage" role="tab" aria-selected="false">⏱ Compteur d'usage</button><button id="o-reg" role="tab" aria-selected="false">⚙ Tarifs et réglages</button></div>
+
+ <section id="p-ins">
+  <p><b id="total"></b> inscrit(s). <button id="csv" class="plein">⬇ Exporter en CSV (Excel)</button></p>
+  <div style="overflow:auto"><table><thead><tr><th>Prénom</th><th>Nom</th><th>E-mail</th><th>Téléphone</th><th>Nouvelles</th><th>Inscrit le</th><th>Dernière connexion</th><th>Connexions</th><th></th></tr></thead><tbody id="corps"></tbody></table></div>
+ </section>
+
+ <section id="p-usage" hidden>
+  <p id="totaux"></p>
+  <p class="note">Une « journée d'usage » = une période de 24 h pendant laquelle la personne s'est connectée. Une personne est reconnue par e-mail, nom + prénom, téléphone ou adresse IP (réglable dans « Tarifs et réglages »).</p>
+  <div style="overflow:auto"><table><thead><tr><th>Personne</th><th>Jours d'usage</th><th>Cycle</th><th>Dernier usage</th><th>Dû</th><th>Payé</th><th>Solde</th><th>Abonnement annuel</th><th>Actions</th></tr></thead><tbody id="pers"></tbody></table></div>
+ </section>
+
+ <section id="p-reg" hidden>
+  <form id="f-reg" novalidate>
+   <h2>Tarifs</h2>
+   <div class="grille">
+    <label>Prix par jour d'usage (€)<input id="r-prixJour" type="text" inputmode="decimal"></label>
+    <label>Jours gratuits au départ<input id="r-joursGratuits" type="text" inputmode="numeric"></label>
+    <label>Jours payants par cycle (le reste du cycle est gratuit)<input id="r-joursPayantsParCycle" type="text" inputmode="numeric"></label>
+    <label>Durée du cycle (jours d'usage)<input id="r-dureeCycle" type="text" inputmode="numeric"></label>
+    <label>Avertir X jours avant la reprise du paiement<input id="r-joursAvertissement" type="text" inputmode="numeric"></label>
+    <label>Abonnement annuel (€, paiement unique)<input id="r-prixAnnuel" type="text" inputmode="decimal"></label>
+   </div>
+   <h2>Liens de paiement</h2>
+   <p class="note">Créez-les chez votre prestataire (Stripe « lien de paiement », PayPal, etc.). Ils doivent commencer par https://. Le lien de l'abonnement annuel est rappelé dans chaque message.</p>
+   <label>Lien de paiement « 1 jour »<input id="r-lienJour" type="text"></label>
+   <label>Lien de paiement « abonnement annuel »<input id="r-lienAnnuel" type="text"></label>
+   <h2>Application</h2>
+   <label>Mode <select id="r-mode"><option value="suivi">Suivi : on compte et on prévient, sans jamais bloquer</option><option value="bloquant">Bloquant : outils fermés tant qu'un solde est dû</option></select></label>
+   <p class="note">Les paiements ne sont pas détectés automatiquement : vous les enregistrez dans l'onglet « Compteur d'usage ». En mode bloquant, l'accès revient dès que vous enregistrez le paiement.</p>
+   <h2>Identification des personnes</h2>
+   <div class="grille">
+    <label class="coche"><input type="checkbox" id="r-identEmail"> <span>par adresse e-mail</span></label>
+    <label class="coche"><input type="checkbox" id="r-identNom"> <span>par nom et prénom</span></label>
+    <label class="coche"><input type="checkbox" id="r-identTel"> <span>par téléphone</span></label>
+    <label class="coche"><input type="checkbox" id="r-identIp"> <span>par adresse IP</span></label>
+   </div>
+   <label>Une adresse IP utilisée par au moins … comptes différents est jugée « partagée » et ignorée (écoles, réseaux mobiles… ; minimum 2)<input id="r-maxParIp" type="text" inputmode="numeric"></label>
+   <div class="err" id="e-reg" role="alert"></div><p><button class="plein" type="submit">Enregistrer les réglages</button> <span id="ok-reg" class="pos"></span></p>
+  </form>
+ </section>
 </div></div></main>
 <script src="/js/admin.js"></script></body></html>

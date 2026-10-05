@@ -25,6 +25,17 @@ npm start                # http://localhost:3100
 - Données dans `data/db.json` (hors dépôt Git). **À sauvegarder régulièrement** (copier ce fichier).
 - `public/confidentialite.html` est un modèle : **compléter le nom et les coordonnées de l'éditeur** avant l'ouverture au public. La collecte de données personnelles impose en France/UE d'informer les inscrits (RGPD) : à faire valider si besoin.
 
+## Compteur d'usage et tarifs (géré dans l'admin)
+- **Journée d'usage** = une période de **24 h glissante** pendant laquelle la personne ouvre les outils (comptée côté serveur à l'ouverture d'une page de l'application).
+- **Identification d'une personne** : par **e-mail**, **nom + prénom** (l'ordre importe peu), **téléphone** (champ facultatif à l'inscription) ou **adresse IP** ; chaque méthode s'active/se désactive dans l'admin. Si une personne ouvre un second compte avec un identifiant déjà connu, elle est reconnue et ses jours sont fusionnés. Une IP utilisée par au moins 3 comptes différents (école, réseau mobile…) est ignorée.
+- **Tarifs par défaut** (tous modifiables) : **3 premiers jours gratuits** ; puis **1 € par jour d'usage** jusqu'au **30ᵉ jour d'usage** ; les jours **31 à 90 sont comptés mais gratuits** ; **message d'avertissement 3 jours avant** la reprise (dès le jour 87) ; au jour 91 un **nouveau cycle** commence (30 jours payants, puis jours offerts, etc.).
+- **Abonnement annuel 59 €**, paiement unique, usage illimité 1 an, rappelé dans **chaque message** avec son lien de paiement.
+- **Messages** affichés en haut des pages d'outils : jour d'essai, jour payant, jours offerts, avertissement, solde à régler, abonnement actif / bientôt terminé.
+- **Admin → « Compteur d'usage »** : jours, cycle, dû / payé / solde par personne ; boutons **Paiement** (enregistrer un montant reçu), **Abonnement annuel payé** (+1 an), **Détail**, **Remise à zéro**, suppression. **« Tarifs et réglages »** : prix, jours, avertissement, liens de paiement, mode, méthodes d'identification.
+- **Mode** : « Suivi » (par défaut : on compte et on prévient, sans bloquer) ou « Bloquant » (outils fermés tant qu'un solde est dû, rouverts dès que vous enregistrez le paiement).
+- **Paiement réel** : renseigner dans l'admin les **liens de paiement** (Stripe « lien de paiement », PayPal…, en https://). Les paiements **ne sont pas détectés automatiquement** : vous les enregistrez à la main. Un branchement automatique (webhook Stripe) est une étape suivante. Encaisser des paiements suppose un statut légal (association, micro-entreprise…) et un prestataire de paiement : à voir avec votre comptable ; mentionner les conditions de vente.
+- **Données** : IP, jours d'usage et paiements sont conservés (obligations comptables) même si l'utilisateur supprime son compte ; la page de confidentialité le précise.
+
 ## Mise en ligne
 Application Node.js autonome : héberger comme le site du club (voir `../DEPLOIEMENT_LWS.md`), avec les variables `PORT`, `MPT_ADMIN_PASSWORD`, `MPT_DATA_DIR`, et `MPT_TRUST_PROXY=1` derrière HTTPS. Utiliser un domaine/sous-domaine dédié.
 

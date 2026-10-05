@@ -60,3 +60,12 @@ footer{margin-left:auto;margin-right:auto}
 .defile body::before,.defile body::after{animation:defile .5s linear infinite}
 @media(max-width:700px){.defile body::before,.defile body::after{animation-name:defile-m}}
 @media(prefers-reduced-motion:reduce){.defile body::before,.defile body::after{animation:none}}
+
+/* bandeau d'usage / paiement */
+.bandeau{background:var(--card);border:1px solid var(--line);border-left:5px solid var(--a2);border-radius:5px;padding:.6rem 1rem;margin:0 0 1rem;box-shadow:0 0 14px rgba(255,61,110,.18)}
+.bandeau .msg{margin:.25rem 0}.bandeau .msg.alerte{color:#ffd23d;font-weight:700}:root[data-theme=classique] .bandeau .msg.alerte{color:#8a5a00}
+.bandeau .msg.paiement{font-weight:700}.bandeau .actions{margin:.5rem 0 .2rem;display:flex;flex-wrap:wrap;gap:.5rem;align-items:center}
+.onglets2{display:flex;flex-wrap:wrap;gap:.4rem;margin:.6rem 0}.onglets2 button[aria-selected=true]{background:linear-gradient(var(--a2),var(--a));color:#fff}
+.grille{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.5rem 1rem}.grille label{margin:.2rem 0}
+.neg{color:#ff9aa8;font-weight:700}.pos{color:#7dffa8}:root[data-theme=classique] .neg{color:#b00020}:root[data-theme=classique] .pos{color:#0a7a35}
+.tarifs{margin:1rem 0}.tarifs li{margin:.2rem 0}

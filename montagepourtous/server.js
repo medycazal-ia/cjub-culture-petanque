@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { promisify } = require('util');
+const U = require('./usage');
 const scrypt = promisify(crypto.scrypt);
 
 try { // .env facultatif, sans dépendance
@@ -22,7 +23,7 @@ const SESSION_JOURS = 30;
 fs.mkdirSync(DATA, { recursive: true });
 
 /* ---------- base de données (fichier JSON, écriture atomique) ---------- */
-let db = { users: [], sessions: [], seq: 0 };
+let db = { users: [], sessions: [], seq: 0, personnes: [], seqP: 0, reglages: {} };
 try { db = Object.assign(db, JSON.parse(fs.readFileSync(DB_FILE, 'utf8'))); } catch (e) { /* première exécution */ }
 function sauver() { const tmp = DB_FILE + '.tmp'; fs.writeFileSync(tmp, JSON.stringify(db)); fs.renameSync(tmp, DB_FILE); }
 const sha = (x) => crypto.createHash('sha256').update(x).digest('hex');
@@ -68,13 +69,14 @@ function ouvrirSession(req, res, u) {
   res.append('Set-Cookie', `mpt_session=${t}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${SESSION_JOURS * 86400}${req.secure ? '; Secure' : ''}`);
 }
 const propre = (x, max) => (typeof x === 'string' ? x.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, max) : '');
+const ipDe = (req) => String(req.ip || '').replace(/^::ffff:/, '');
 const vue = (u) => ({ id: u.id, email: u.email, prenom: u.prenom, nom: u.nom });
 
 async function hacher(mdp, sel) { return (await scrypt(mdp, sel, 64)).toString('hex'); }
 
 /* ---------- comptes ---------- */
 app.post('/api/inscription', limite('ins', 10, 3600e3), async (req, res) => {
-  const b = req.body || {}, email = propre(b.email, 254).toLowerCase(), prenom = propre(b.prenom, 80), nom = propre(b.nom, 80), mdp = typeof b.mdp === 'string' ? b.mdp : '';
+  const b = req.body || {}, email = propre(b.email, 254).toLowerCase(), prenom = propre(b.prenom, 80), nom = propre(b.nom, 80), mdp = typeof b.mdp === 'string' ? b.mdp : '', tel = U.normTel(propre(b.telephone, 30));
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return res.status(400).json({ erreur: 'Adresse e-mail invalide.' });
   if (!prenom) return res.status(400).json({ erreur: 'Le prénom est obligatoire.' });
   if (!nom) return res.status(400).json({ erreur: 'Le nom est obligatoire.' });
@@ -83,7 +85,7 @@ app.post('/api/inscription', limite('ins', 10, 3600e3), async (req, res) => {
   if (db.users.some((u) => u.email === email)) return res.status(409).json({ erreur: 'Un compte existe déjà avec cet e-mail. Connectez-vous.' });
   const sel = crypto.randomBytes(16).toString('hex'), u = {
     id: ++db.seq, email, prenom, nom, sel, hash: await hacher(mdp, sel), creeLe: new Date().toISOString(), consentementLe: new Date().toISOString(),
-    nouvelles: b.nouvelles === true, derniereConnexion: null, nbConnexions: 0,
+    tel, nouvelles: b.nouvelles === true, derniereConnexion: null, nbConnexions: 0,
   };
   if (db.users.some((x) => x.email === email)) return res.status(409).json({ erreur: 'Un compte existe déjà avec cet e-mail. Connectez-vous.' });
   db.users.push(u); ouvrirSession(req, res, u); res.status(201).json({ utilisateur: vue(u) });
@@ -117,7 +119,7 @@ function admin(req, res, next) {
   next();
 }
 const adminLimite = limite('adm', 20, 900e3);
-const ligne = (u) => ({ id: u.id, email: u.email, prenom: u.prenom, nom: u.nom, nouvelles: !!u.nouvelles, creeLe: u.creeLe, consentementLe: u.consentementLe, derniereConnexion: u.derniereConnexion, nbConnexions: u.nbConnexions || 0 });
+const ligne = (u) => ({ id: u.id, email: u.email, prenom: u.prenom, nom: u.nom, telephone: u.tel || '', nouvelles: !!u.nouvelles, creeLe: u.creeLe, consentementLe: u.consentementLe, derniereConnexion: u.derniereConnexion, nbConnexions: u.nbConnexions || 0 });
 app.get('/api/admin/utilisateurs', adminLimite, admin, (req, res) => res.json({ total: db.users.length, utilisateurs: db.users.map(ligne), motDePasseParDefaut: ADMIN_PAR_DEFAUT }));
 app.delete('/api/admin/utilisateurs/:id', adminLimite, admin, (req, res) => {
   const id = +req.params.id, n = db.users.length; db.users = db.users.filter((u) => u.id !== id); db.sessions = db.sessions.filter((s) => s.uid !== id); sauver();
@@ -125,18 +127,53 @@ app.delete('/api/admin/utilisateurs/:id', adminLimite, admin, (req, res) => {
 });
 const csvCase = (v) => { v = v == null ? '' : String(v); if (/^[=+\-@\t\r]/.test(v)) v = "'" + v; return '"' + v.replace(/"/g, '""') + '"'; }; // neutralise l'injection de formules
 app.get('/api/admin/export.csv', adminLimite, admin, (req, res) => {
-  const cols = ['id', 'email', 'prenom', 'nom', 'nouvelles', 'creeLe', 'consentementLe', 'derniereConnexion', 'nbConnexions'];
+  const cols = ['id', 'email', 'prenom', 'nom', 'telephone', 'nouvelles', 'creeLe', 'consentementLe', 'derniereConnexion', 'nbConnexions'];
   const csv = '﻿' + cols.join(';') + '\r\n' + db.users.map(ligne).map((u) => cols.map((c) => csvCase(c === 'nouvelles' ? (u[c] ? 'oui' : 'non') : u[c])).join(';')).join('\r\n') + '\r\n';
   res.set({ 'Content-Type': 'text/csv; charset=utf-8', 'Content-Disposition': 'attachment; filename="montagepourtous-inscrits.csv"' }).send(csv);
 });
+
+/* ---------- compteur d'usage ---------- */
+app.get('/api/usage', (req, res) => {
+  const u = utilisateur(req); if (!u) return res.status(401).json({ erreur: 'Non connecté' });
+  let p = (db.personnes || []).find((x) => x.id === u.personneId);
+  if (!p) { p = U.compter(db, u, ipDe(req), Date.now()).personne; sauver(); }
+  res.json(U.statut(db, p, Date.now()));
+});
+app.get('/api/tarifs', (req, res) => { const r = U.reglages(db); res.json({ prixJour: r.prixJour, joursGratuits: r.joursGratuits, joursPayantsParCycle: r.joursPayantsParCycle, dureeCycle: r.dureeCycle, prixAnnuel: r.prixAnnuel, lienAnnuel: r.lienAnnuel }); });
+app.get('/api/admin/usage', adminLimite, admin, (req, res) => {
+  const n = Date.now(), pers = (db.personnes || []).map((p) => U.resume(db, p, n)), tot = pers.reduce((a, p) => ({ du: a.du + p.du, paye: a.paye + p.paye, abo: a.abo + p.abonnements }), { du: 0, paye: 0, abo: 0 });
+  res.json({ reglages: U.reglages(db), personnes: pers, totaux: { du: Math.round(tot.du * 100) / 100, paye: Math.round(tot.paye * 100) / 100, abonnements: Math.round(tot.abo * 100) / 100, solde: Math.round((tot.du - tot.paye) * 100) / 100, personnes: pers.length } });
+});
+app.put('/api/admin/reglages', adminLimite, admin, (req, res) => { try { db.reglages = U.reglagesValides(req.body || {}); sauver(); res.json({ reglages: U.reglages(db) }); } catch (e) { res.status(400).json({ erreur: e.message }); } });
+const personneAdmin = (req, res) => { const p = (db.personnes || []).find((x) => x.id === +req.params.id); if (!p) res.status(404).json({ erreur: 'Personne introuvable' }); return p; };
+app.post('/api/admin/personnes/:id/paiement', adminLimite, admin, (req, res) => {
+  const p = personneAdmin(req, res); if (!p) return; const m = Math.round(+(req.body || {}).montant * 100) / 100;
+  if (!isFinite(m) || m === 0 || Math.abs(m) > 100000) return res.status(400).json({ erreur: 'Montant invalide' });
+  p.paiements.push({ le: new Date().toISOString(), montant: m, note: propre((req.body || {}).note, 200) }); sauver(); res.json(U.resume(db, p, Date.now()));
+});
+app.post('/api/admin/personnes/:id/abonnement', adminLimite, admin, (req, res) => {
+  const p = personneAdmin(req, res); if (!p) return; const b = req.body || {}, n = Date.now();
+  if (b.annuler) p.abonnementJusqu = null;
+  else { p.abonnementJusqu = Math.max(n, p.abonnementJusqu || 0) + 365 * U.JOUR; if (b.paiement !== false) p.paiements.push({ le: new Date().toISOString(), montant: U.reglages(db).prixAnnuel, note: 'Abonnement annuel', abo: true }); }
+  sauver(); res.json(U.resume(db, p, n));
+});
+app.post('/api/admin/personnes/:id/remise', adminLimite, admin, (req, res) => { const p = personneAdmin(req, res); if (!p) return; p.jours = 0; p.fenetreFin = 0; p.historique = []; sauver(); res.json(U.resume(db, p, Date.now())); });
+app.delete('/api/admin/personnes/:id', adminLimite, admin, (req, res) => { const id = +req.params.id; db.personnes = (db.personnes || []).filter((p) => p.id !== id); db.users.forEach((u) => { if (u.personneId === id) delete u.personneId; }); sauver(); res.json({ ok: true }); });
 
 app.get('/health', (req, res) => res.json({ ok: true }));
 
 /* ---------- pages : public, et outils réservés aux comptes ---------- */
 app.use('/app', (req, res, next) => {
-  if (utilisateur(req)) return next();
-  if (req.accepts('html') && req.method === 'GET') return res.redirect('/?connexion=1');
-  res.status(401).end();
+  const u = utilisateur(req);
+  if (!u) { if (req.accepts('html') && req.method === 'GET') return res.redirect('/?connexion=1'); return res.status(401).end(); }
+  const ch = req.path, page = req.method === 'GET' && (ch === '/' || /\.html$/.test(ch)), now = Date.now();
+  let p;
+  if (page) { p = U.compter(db, u, ipDe(req), now).personne; sauver(); } // chaque ouverture de page compte la journée d'usage si la période de 24 h est écoulée
+  else p = (db.personnes || []).find((x) => x.id === u.personneId);
+  if (p && (/^\/(transitions|simple)\.html$/.test(ch) || /^\/js\/montage-/.test(ch)) && U.statut(db, p, now).bloque) {
+    if (page) return res.redirect('/app/paiement.html'); return res.status(402).json({ erreur: 'Paiement requis' });
+  }
+  next();
 }, (req, res, next) => { res.set('Cache-Control', 'private, no-cache'); next(); }, express.static(path.join(__dirname, 'app')));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use((req, res) => res.status(404).send('Page introuvable'));
